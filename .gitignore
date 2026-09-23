@@ -1,0 +1,28 @@
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Java
+.gradle/
+build/
+out/
+
+# Node
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Generated
+target/
+reports/

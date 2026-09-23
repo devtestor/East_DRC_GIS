@@ -1,0 +1,636 @@
+openapi: 3.0.3
+info:
+  title: Eastern DRC Land GIS Registered Device Workflow API
+  version: 0.2.0
+  description: >
+    Contract for the current staff-only registered-device enrollment and lifecycle
+    maker-checker workflow slice. This API is part of a proposed land-information
+    and workflow platform. It does not confer official registry authority.
+servers:
+  - url: http://localhost:8080
+    description: Local development API
+security:
+  - basicStaffAuth: []
+tags:
+  - name: Registered devices
+  - name: Workflow tasks
+paths:
+  /api/v1/devices:
+    post:
+      tags:
+        - Registered devices
+      summary: Enroll a registered device for audit traceability
+      description: >
+        Creates an active registered-device row. Suspension, revocation, and expiry
+        are deliberately not performed by this operation.
+      operationId: enrollRegisteredDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRegisteredDeviceRequest"
+      responses:
+        "201":
+          description: Device enrolled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisteredDeviceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestProblem"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "409":
+          $ref: "#/components/responses/ConflictProblem"
+    get:
+      tags:
+        - Registered devices
+      summary: List registered devices
+      operationId: listRegisteredDevices
+      responses:
+        "200":
+          description: Devices ordered by newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegisteredDeviceResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+  /api/v1/devices/{deviceId}/suspend:
+    post:
+      tags:
+        - Registered devices
+      summary: Request registered-device suspension
+      description: >
+        Opens a REGISTERED_DEVICE_LIFECYCLE workflow task with requestedAction SUSPEND.
+        The device status is not changed until an authorized checker claims the task,
+        evidence is linked, and the task is approved.
+      operationId: requestRegisteredDeviceSuspension
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/LifecycleTaskCreated"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+  /api/v1/devices/{deviceId}/revoke:
+    post:
+      tags:
+        - Registered devices
+      summary: Request registered-device revocation
+      description: >
+        Opens a REGISTERED_DEVICE_LIFECYCLE workflow task with requestedAction REVOKE.
+        The device remains in its current state until approval.
+      operationId: requestRegisteredDeviceRevocation
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/LifecycleTaskCreated"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+  /api/v1/devices/{deviceId}/expire:
+    post:
+      tags:
+        - Registered devices
+      summary: Request registered-device expiry
+      description: >
+        Opens a REGISTERED_DEVICE_LIFECYCLE workflow task with requestedAction EXPIRE.
+        The device expiry timestamp is not changed until approval.
+      operationId: requestRegisteredDeviceExpiry
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/LifecycleTaskCreated"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+  /api/v1/devices/tasks/{taskId}/decisions:
+    post:
+      tags:
+        - Registered devices
+        - Workflow tasks
+      summary: Decide a registered-device lifecycle task
+      description: >
+        Approves or rejects a REGISTERED_DEVICE_LIFECYCLE task. Approval requires
+        the task to be claimed by the deciding actor, maker-checker separation from
+        the requester, and at least one linked evidence record. Approval atomically
+        applies the requested device lifecycle mutation.
+      operationId: decideRegisteredDeviceLifecycleTask
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideWorkflowTaskRequest"
+      responses:
+        "200":
+          description: Lifecycle task decided.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisteredDeviceLifecycleResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestProblem"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+        "409":
+          description: Task is unclaimed, claimed by another actor, closed, self-approved, or missing evidence.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+              examples:
+                evidenceRequired:
+                  summary: Workflow evidence required
+                  value:
+                    type: https://edrc-land-gis.local/problems/workflow-evidence-required
+                    title: Workflow evidence required
+                    status: 409
+                    detail: Workflow task approval requires at least one evidence link.
+        "422":
+          description: Task is not a registered-device lifecycle task.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+  /api/v1/workflow/tasks:
+    get:
+      tags:
+        - Workflow tasks
+      summary: List open workflow tasks
+      operationId: listOpenWorkflowTasks
+      responses:
+        "200":
+          description: Open workflow tasks ordered by creation time.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowTaskResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+  /api/v1/workflow/tasks/{taskId}/claim:
+    post:
+      tags:
+        - Workflow tasks
+      summary: Claim a workflow task
+      operationId: claimWorkflowTask
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task claimed by the authenticated actor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTaskResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+        "409":
+          $ref: "#/components/responses/ConflictProblem"
+  /api/v1/workflow/tasks/{taskId}/evidence:
+    get:
+      tags:
+        - Workflow tasks
+      summary: List workflow-task evidence
+      operationId: listWorkflowTaskEvidence
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Evidence links ordered by creation time.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowTaskEvidenceResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+    post:
+      tags:
+        - Workflow tasks
+      summary: Add workflow-task evidence
+      operationId: addWorkflowTaskEvidence
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddWorkflowTaskEvidenceRequest"
+      responses:
+        "200":
+          description: Evidence linked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTaskEvidenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestProblem"
+        "401":
+          $ref: "#/components/responses/UnauthorizedProblem"
+        "403":
+          $ref: "#/components/responses/ForbiddenProblem"
+        "404":
+          $ref: "#/components/responses/NotFoundProblem"
+components:
+  securitySchemes:
+    basicStaffAuth:
+      type: http
+      scheme: basic
+      description: Local development staff authentication. Production authentication is not finalized.
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z0-9._:-]{4,96}$"
+      example: FIELD-TABLET-010
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    LifecycleTaskCreated:
+      description: Lifecycle task opened; device has not yet been mutated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RegisteredDeviceLifecycleResponse"
+    BadRequestProblem:
+      description: Invalid request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    UnauthorizedProblem:
+      description: Authentication is required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    ForbiddenProblem:
+      description: Authenticated actor lacks the required staff or workflow scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    NotFoundProblem:
+      description: Target resource was not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    ConflictProblem:
+      description: Request conflicts with current resource or workflow state.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+  schemas:
+    CreateRegisteredDeviceRequest:
+      type: object
+      required:
+        - deviceId
+        - deviceType
+      properties:
+        deviceId:
+          type: string
+          pattern: "^[A-Z0-9._:-]{4,96}$"
+          example: FIELD-TABLET-010
+        assignedUserId:
+          type: string
+          format: uuid
+          nullable: true
+        organizationId:
+          type: string
+          format: uuid
+          nullable: true
+        deviceType:
+          $ref: "#/components/schemas/RegisteredDeviceType"
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    RegisteredDeviceLifecycleResponse:
+      type: object
+      required:
+        - device
+        - requestedAction
+        - workflowStatus
+        - taskId
+      properties:
+        device:
+          $ref: "#/components/schemas/RegisteredDeviceResponse"
+        requestedAction:
+          $ref: "#/components/schemas/RegisteredDeviceLifecycleAction"
+        workflowStatus:
+          $ref: "#/components/schemas/WorkflowTaskStatus"
+        taskId:
+          type: string
+          format: uuid
+    RegisteredDeviceResponse:
+      type: object
+      required:
+        - id
+        - deviceId
+        - deviceType
+        - status
+        - enrolledAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        deviceId:
+          type: string
+        assignedUserId:
+          type: string
+          format: uuid
+          nullable: true
+        organizationId:
+          type: string
+          format: uuid
+          nullable: true
+        deviceType:
+          $ref: "#/components/schemas/RegisteredDeviceType"
+        status:
+          $ref: "#/components/schemas/RegisteredDeviceStatus"
+        enrolledAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WorkflowTaskResponse:
+      type: object
+      required:
+        - id
+        - workflowType
+        - targetType
+        - targetId
+        - requestedAction
+        - requestedByUserId
+        - requestedBy
+        - status
+        - priority
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflowType:
+          type: string
+          enum:
+            - PARCEL_STATUS_TRANSITION
+            - REGISTERED_DEVICE_LIFECYCLE
+        targetType:
+          type: string
+          enum:
+            - parcel
+            - registered-device
+        targetId:
+          type: string
+          format: uuid
+        requestedAction:
+          type: string
+        requestedByUserId:
+          type: string
+          format: uuid
+        requestedBy:
+          type: string
+        status:
+          $ref: "#/components/schemas/WorkflowTaskStatus"
+        priority:
+          type: string
+          enum:
+            - LOW
+            - NORMAL
+            - HIGH
+            - URGENT
+        createdAt:
+          type: string
+          format: date-time
+        assignedToActor:
+          type: string
+          nullable: true
+        assignedToUserId:
+          type: string
+          format: uuid
+          nullable: true
+        assignedToRole:
+          type: string
+          nullable: true
+        claimedAt:
+          type: string
+          format: date-time
+          nullable: true
+        decisionReason:
+          type: string
+          nullable: true
+        decidedAt:
+          type: string
+          format: date-time
+          nullable: true
+        decidedByUserId:
+          type: string
+          format: uuid
+          nullable: true
+        decidedBy:
+          type: string
+          nullable: true
+    AddWorkflowTaskEvidenceRequest:
+      type: object
+      required:
+        - evidenceType
+        - referenceType
+        - summary
+      properties:
+        evidenceType:
+          $ref: "#/components/schemas/WorkflowEvidenceType"
+        referenceType:
+          type: string
+          example: manual-note
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Required for DOCUMENT evidence.
+        externalReference:
+          type: string
+          nullable: true
+          example: SECURITY-REVIEW-777
+        summary:
+          type: string
+          minLength: 3
+          maxLength: 512
+    WorkflowTaskEvidenceResponse:
+      type: object
+      required:
+        - id
+        - taskId
+        - evidenceType
+        - referenceType
+        - summary
+        - addedByUserId
+        - addedBy
+        - addedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        evidenceType:
+          $ref: "#/components/schemas/WorkflowEvidenceType"
+        referenceType:
+          type: string
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+        externalReference:
+          type: string
+          nullable: true
+        summary:
+          type: string
+        addedByUserId:
+          type: string
+          format: uuid
+        addedBy:
+          type: string
+        addedAt:
+          type: string
+          format: date-time
+    DecideWorkflowTaskRequest:
+      type: object
+      required:
+        - decision
+        - reason
+      properties:
+        decision:
+          type: string
+          enum:
+            - APPROVE
+            - REJECT
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 512
+    RegisteredDeviceType:
+      type: string
+      enum:
+        - FIELD_MOBILE
+        - STAFF_WORKSTATION
+        - SERVICE_ACCOUNT
+        - OTHER
+    RegisteredDeviceStatus:
+      type: string
+      enum:
+        - PENDING_ENROLLMENT
+        - ACTIVE
+        - SUSPENDED
+        - REVOKED
+        - EXPIRED
+    RegisteredDeviceLifecycleAction:
+      type: string
+      enum:
+        - SUSPEND
+        - REVOKE
+        - EXPIRE
+    WorkflowTaskStatus:
+      type: string
+      enum:
+        - OPEN
+        - CLAIMED
+        - APPROVED
+        - REJECTED
+        - CANCELLED
+    WorkflowEvidenceType:
+      type: string
+      enum:
+        - DOCUMENT
+        - SURVEY_OBSERVATION
+        - FIELD_PHOTO
+        - BOUNDARY_MARKER
+        - NEIGHBOR_ACKNOWLEDGEMENT
+        - COURT_ORDER
+        - NOTE
+        - OTHER
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri

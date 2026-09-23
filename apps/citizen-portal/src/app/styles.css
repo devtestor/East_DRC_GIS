@@ -1,0 +1,169 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f6f7f4;
+  color: #17211a;
+}
+
+body {
+  margin: 0;
+}
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  gap: 28px;
+  place-items: center;
+  padding: 24px;
+}
+
+.notice,
+.public-search {
+  max-width: 760px;
+  width: min(760px, 100%);
+}
+
+.eyebrow {
+  color: #355f8c;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: 0;
+  margin: 0 0 20px;
+}
+
+p {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.public-search {
+  background: #ffffff;
+  border: 1px solid #d8dfd9;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+h2,
+h3 {
+  margin: 0;
+}
+
+form {
+  display: grid;
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+input {
+  border: 1px solid #aeb8c2;
+  border-radius: 6px;
+  color: #17211a;
+  font: inherit;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+button {
+  color: #ffffff;
+  background: #1f6f50;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 12px 16px;
+}
+
+.message {
+  background: #fff7de;
+  border: 1px solid #e2c76f;
+  border-radius: 6px;
+  margin: 0;
+  padding: 12px;
+}
+
+.parcel-result {
+  background: #e8f5ed;
+  border: 1px solid #8fc3a4;
+  border-radius: 6px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.notification-credentials {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.notification-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification {
+  background: #e8f5ed;
+  border: 1px solid #8fc3a4;
+  border-radius: 6px;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.notification.read {
+  background: #f4f6f4;
+  border-color: #d8dfd9;
+}
+
+.notification div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.notification small,
+.notification-state {
+  color: #526159;
+}
+
+.notification p {
+  margin: 0;
+}
+
+dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+dl div {
+  display: grid;
+  gap: 3px;
+}
+
+dt {
+  color: #526159;
+  font-weight: 700;
+}
+
+dd {
+  margin: 0;
+}

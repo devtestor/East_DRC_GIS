@@ -1,0 +1,297 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f6f8;
+  color: #15202b;
+}
+
+body {
+  margin: 0;
+}
+
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.eyebrow {
+  color: #7c4d13;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1;
+  letter-spacing: 0;
+  margin: 0 0 16px;
+}
+
+p {
+  max-width: 760px;
+  line-height: 1.6;
+}
+
+.workbench {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin-top: 32px;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #d7dde3;
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.hint {
+  color: #425466;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #aeb8c2;
+  border-radius: 6px;
+  color: #15202b;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+input,
+select {
+  min-height: 42px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button {
+  background: #245e47;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 10px 14px;
+}
+
+.workflow-panel {
+  align-content: start;
+}
+
+.notification-panel {
+  margin-top: 24px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification {
+  background: #edf8f1;
+  border: 1px solid #9ac4aa;
+  border-radius: 6px;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.notification.read {
+  background: #f7faf8;
+  border-color: #d7dde3;
+}
+
+.notification p {
+  margin: 0;
+}
+
+.notification small,
+.notification-state {
+  color: #425466;
+}
+
+.task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.task-card {
+  background: #f7faf8;
+  border: 1px solid #b8c9bf;
+  color: #15202b;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  text-align: left;
+}
+
+.task-card span {
+  font-weight: 700;
+}
+
+.task-card small {
+  color: #425466;
+}
+
+.task-card.selected {
+  border-color: #245e47;
+  box-shadow: 0 0 0 3px #d9ece2;
+}
+
+.nested-form {
+  border-top: 1px solid #e1e6eb;
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+}
+
+.record-card {
+  background: #f8fafc;
+  border: 1px solid #d7dde3;
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.record-card small {
+  color: #425466;
+}
+
+.record-card span {
+  line-height: 1.5;
+}
+
+.safety-note {
+  background: #fff8e6;
+  border: 1px solid #e3bd5b;
+  border-radius: 6px;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.safety-note span {
+  color: #425466;
+}
+
+.evidence-panel {
+  border-top: 1px solid #e1e6eb;
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.section-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.section-row button {
+  min-height: 38px;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 10px;
+}
+
+.warning-text {
+  background: #fff8e6;
+  border: 1px solid #e3bd5b;
+  border-radius: 6px;
+  color: #684b00;
+  margin: 0;
+  padding: 12px;
+}
+
+.geometry-preview {
+  background: #eef7f2;
+  border-radius: 6px;
+  min-height: 180px;
+  width: 100%;
+}
+
+.geometry-preview rect {
+  fill: #f8fafc;
+  stroke: #b8c9bf;
+}
+
+.geometry-preview polyline {
+  fill: rgba(36, 94, 71, 0.18);
+  stroke: #245e47;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.decision-form {
+  display: grid;
+  gap: 16px;
+}
+
+.result {
+  border-radius: 6px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.result span {
+  font-weight: 700;
+}
+
+.result pre {
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.success {
+  background: #e8f5ed;
+  border: 1px solid #8fc3a4;
+}
+
+.error {
+  background: #fff0ed;
+  border: 1px solid #d99686;
+}

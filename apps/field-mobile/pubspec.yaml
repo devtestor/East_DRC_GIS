@@ -1,0 +1,26 @@
+name: edrc_field_mobile
+description: Offline-first field survey client for the proposed Eastern DRC land services platform.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_secure_storage: ^9.2.2
+  geolocator: ^13.0.2
+  http: ^1.2.2
+  image_picker: ^1.1.2
+  signature: ^5.5.0
+  sqflite_sqlcipher: ^3.1.0+1
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

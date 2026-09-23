@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-api:
+    name: Publish approved API image
+    runs-on: ubuntu-latest
+    environment:
+      name: pilot
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify release gates
+        run: bash tools/ci/verify-safe-defaults.sh
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/edrc-land-gis-api
+          tags: |
+            type=ref,event=tag
+            type=sha,format=long
+
+      - name: Build and publish API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Record published image reference
+        run: printf '%s\n' '${{ steps.meta.outputs.tags }}' > published-image-references.txt
+
+      - name: Upload publication record
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-image-references-${{ github.ref_name }}
+          path: published-image-references.txt

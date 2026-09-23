@@ -1,0 +1,280 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: OpenAPI contract checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify registered-device workflow contract smoke test
+        run: ./gradlew --no-daemon :apps:api:test --tests "cd.edrc.landgis.contracts.*"
+
+      - name: Check contract file is present and non-empty
+        run: test -s contracts/openapi/registered-device-workflow.yaml
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    needs: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run API tests
+        run: ./gradlew --no-daemon :apps:api:test
+
+  migration-startup:
+    name: Flyway migration and API startup
+    runs-on: ubuntu-latest
+    needs: backend
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: edrc_land_gis
+          POSTGRES_USER: edrc_app
+          POSTGRES_PASSWORD: change-me-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U edrc_app -d edrc_land_gis"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Flyway migrations and verify API startup
+        env:
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_NAME: edrc_land_gis
+          DB_USER: edrc_app
+          DB_PASSWORD: change-me-ci-only
+          DEV_SEED_ENABLED: "true"
+        run: |
+          set +e
+          timeout 90s ./gradlew --no-daemon :apps:api:bootRun > api-startup.log 2>&1
+          status=$?
+          set -e
+          cat api-startup.log
+          if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
+            exit "$status"
+          fi
+          grep -q "Successfully validated" api-startup.log
+          grep -q "migrations" api-startup.log
+          grep -q "Started EasternDrcLandGisApplication" api-startup.log
+
+  frontend:
+    name: Frontend typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck workspaces
+        run: npm run typecheck
+
+      - name: Build workspaces
+        run: npm run build
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=moderate
+
+  security:
+    name: Security and safe-default checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify safe application defaults
+        run: bash tools/ci/verify-safe-defaults.sh
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java,javascript-typescript
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build backend for CodeQL
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile backend
+        run: ./gradlew --no-daemon :apps:api:compileJava
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v3
+
+      - name: Scan repository configuration
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+  sbom:
+    name: SBOM generation
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate repository SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: edrc-land-gis-sbom.cdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: edrc-land-gis-sbom
+          path: edrc-land-gis-sbom.cdx.json
+          if-no-files-found: error
+
+  release-artifacts:
+    name: Release artifacts and provenance
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+      - security
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+      - run: npm run build
+      - run: ./gradlew --no-daemon :apps:api:bootJar
+
+      - name: Package release bundle
+        run: |
+          mkdir -p release-bundle
+          cp apps/api/build/libs/*.jar release-bundle/
+          cp -r apps/citizen-portal/.next release-bundle/citizen-portal-next
+          cp -r apps/staff-console/.next release-bundle/staff-console-next
+          sha256sum release-bundle/* > release-bundle/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: edrc-land-gis-release-bundle
+          path: release-bundle
+
+      - name: Attest release bundle provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release-bundle/*
+
+  container-security:
+    name: API container build and scan
+    runs-on: ubuntu-latest
+    needs: security
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production API image
+        run: docker build --file apps/api/Dockerfile --tag edrc-land-gis-api:${{ github.sha }} .
+
+      - name: Scan production API image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: edrc-land-gis-api:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  pilot-deployment-gate:
+    name: Pilot deployment approval gate
+    runs-on: ubuntu-latest
+    needs:
+      - release-artifacts
+      - container-security
+    environment:
+      name: pilot
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release gate documentation and safe defaults
+        run: |
+          test -s docs/operations/release-gates.md
+          bash tools/ci/verify-safe-defaults.sh

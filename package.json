@@ -1,0 +1,14 @@
+{
+  "name": "eastern-drc-land-gis",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/citizen-portal",
+    "apps/staff-console"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
