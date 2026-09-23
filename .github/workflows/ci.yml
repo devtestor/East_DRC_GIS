@@ -83,7 +83,7 @@ jobs:
           DB_NAME: edrc_land_gis
           DB_USER: edrc_app
           DB_PASSWORD: change-me-ci-only
-          DEV_SEED_ENABLED: "true"
+          DEV_SEED_ENABLED: "false"
         run: |
           set +e
           timeout 90s ./gradlew --no-daemon :apps:api:bootRun > api-startup.log 2>&1
@@ -165,7 +165,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
 
       - name: Scan repository configuration
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -256,7 +256,7 @@ jobs:
         run: docker build --file apps/api/Dockerfile --tag edrc-land-gis-api:${{ github.sha }} .
 
       - name: Scan production API image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: edrc-land-gis-api:${{ github.sha }}
           format: table

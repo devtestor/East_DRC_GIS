@@ -53,7 +53,7 @@ class DevelopmentIdentitySeed implements ApplicationRunner {
                     "Phase 2 Fictional Staff User",
                     passwordEncoder.encode(properties.staffPassword()));
             seed.activateForDevelopmentSeed();
-            users.save(seed);
+            users.saveAndFlush(seed);
             LOGGER.warn("Created fictional local development staff account: {}", email);
         }
 
