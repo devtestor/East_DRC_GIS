@@ -156,6 +156,8 @@ jobs:
 
       - name: Verify privileged access controls
         run: bash tools/ci/verify-privileged-access.sh
+      - name: Verify data governance controls
+        run: bash tools/ci/verify-data-governance.sh
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
