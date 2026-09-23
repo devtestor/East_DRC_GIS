@@ -18,6 +18,7 @@ grep -q 'secretKeyRef' "$root_dir/platform/infrastructure/kubernetes/api-deploym
 grep -q 'readinessProbe' "$root_dir/platform/infrastructure/kubernetes/api-deployment.yaml"
 grep -q 'livenessProbe' "$root_dir/platform/infrastructure/kubernetes/api-deployment.yaml"
 grep -q 'runAsNonRoot: true' "$root_dir/platform/infrastructure/kubernetes/api-deployment.yaml"
+grep -q 'readOnlyRootFilesystem: true' "$root_dir/platform/infrastructure/kubernetes/api-deployment.yaml"
 grep -q 'development_seed_disabled' "$root_dir/platform/infrastructure/terraform/main.tf"
 
 placeholder_pattern='__SET_IN_SECRET_MANAGER__|change-me-staging-smoke-only'
