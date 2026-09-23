@@ -17,6 +17,7 @@ class WorkflowTaskServiceTest {
     private static final AuthenticatedActor CHECKER = new AuthenticatedActor(UUID.fromString("10000000-0000-0000-0000-000000000002"), "checker@example.test");
     private static final AuthenticatedActor APPROVER = new AuthenticatedActor(UUID.fromString("10000000-0000-0000-0000-000000000003"), "approver@example.test");
     private static final AuthenticatedActor OTHER_CHECKER = new AuthenticatedActor(UUID.fromString("10000000-0000-0000-0000-000000000004"), "other-checker@example.test");
+    private static final HighRiskWorkflowPolicy HIGH_RISK_POLICY = new HighRiskWorkflowPolicy();
 
     @Test
     void opensParcelTransitionTask() {
@@ -24,7 +25,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.save(any(WorkflowTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         UUID taskId = service.openParcelTransitionTask(
                 UUID.randomUUID(),
@@ -40,7 +41,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.save(any(WorkflowTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         UUID taskId = service.openRegisteredDeviceLifecycleTask(
                 UUID.randomUUID(),
@@ -68,7 +69,7 @@ class WorkflowTaskServiceTest {
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
         when(evidence.countByTaskId(taskId)).thenReturn(1L);
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
         service.claimTask(taskId, APPROVER);
 
         WorkflowTask decided = service.decideTask(
@@ -100,7 +101,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         assertThatThrownBy(() -> service.decideTask(
                 taskId,
@@ -125,7 +126,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
         service.claimTask(taskId, MAKER);
 
         assertThatThrownBy(() -> service.decideTask(
@@ -153,7 +154,7 @@ class WorkflowTaskServiceTest {
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
         when(evidence.countByTaskId(taskId)).thenReturn(0L);
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
         service.claimTask(taskId, CHECKER);
 
         assertThatThrownBy(() -> service.decideTask(
@@ -181,7 +182,7 @@ class WorkflowTaskServiceTest {
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
         when(evidence.save(any(WorkflowTaskEvidenceLink.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         WorkflowTaskEvidenceResponse response = service.addEvidence(
                 taskId,
@@ -214,7 +215,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         WorkflowTaskResponse response = service.claimTask(taskId, CHECKER);
 
@@ -240,7 +241,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         assertThatThrownBy(() -> service.decideTask(
                 taskId,
@@ -265,7 +266,7 @@ class WorkflowTaskServiceTest {
         WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
         WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
         when(tasks.findById(taskId)).thenReturn(Optional.of(task));
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
         service.claimTask(taskId, CHECKER);
 
         assertThatThrownBy(() -> service.decideTask(
@@ -294,10 +295,38 @@ class WorkflowTaskServiceTest {
         doThrow(new WorkflowRoleScopeViolationException(CHECKER.userId(), "CADASTRAL_OFFICER"))
                 .when(roleScopes)
                 .requireClaimScope(CHECKER, task);
-        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
 
         assertThatThrownBy(() -> service.claimTask(taskId, CHECKER))
                 .isInstanceOf(WorkflowRoleScopeViolationException.class);
         assertThat(task.status()).isEqualTo(WorkflowTaskStatus.OPEN);
+    }
+
+    @Test
+    void blocksApprovalWhenWorkflowActionIsNotRegisteredInHighRiskPolicy() {
+        UUID taskId = UUID.randomUUID();
+        WorkflowTask task = new WorkflowTask(
+                taskId,
+                "UNREGISTERED_PRIVILEGED_WORKFLOW",
+                "parcel",
+                UUID.randomUUID(),
+                "CHANGE_LEGAL_RECORD_WITHOUT_POLICY",
+                MAKER.userId(),
+                MAKER.username(),
+                "CADASTRAL_OFFICER");
+        WorkflowTaskRepository tasks = Mockito.mock(WorkflowTaskRepository.class);
+        WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
+        WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
+        when(tasks.findById(taskId)).thenReturn(Optional.of(task));
+        when(evidence.countByTaskId(taskId)).thenReturn(1L);
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
+        task.claim(CHECKER.userId(), CHECKER.username());
+
+        assertThatThrownBy(() -> service.decideTask(
+                taskId,
+                new DecideWorkflowTaskRequest(WorkflowDecision.APPROVE, "Unknown privileged action"),
+                CHECKER))
+                .isInstanceOf(PrivilegedWorkflowPolicyViolationException.class);
+        assertThat(task.status()).isEqualTo(WorkflowTaskStatus.CLAIMED);
     }
 }

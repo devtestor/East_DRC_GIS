@@ -27,6 +27,8 @@
 
 Platform administration is technical administration and does not imply authority to change legal land records.
 
+Privileged workflow policy is now explicit in backend code. Known high-risk workflow actions must be registered in `HighRiskWorkflowPolicy` before they can be opened or approved. This policy does not replace role, organization, jurisdiction, claim, evidence, and maker-checker checks; it prevents new legal, cadastral, pilot or security workflows from becoming approvable without an explicit policy entry.
+
 Phase 2 local development uses a fictional seeded staff account. It grants `ROLE_STAFF` only for exercising protected staff endpoints locally and creates a fictional active `CADASTRAL_OFFICER` organization membership scoped to the fictional `NK-FICTIONAL` province/jurisdiction so workflow claim checks can run in development. This is not a production authorization model.
 
 The current workflow slice records the user ID that requested an approval-required parcel status transition, requires a staff user with an active membership matching the task role and parcel administrative jurisdiction to claim the task, allows only the claiming user to decide it, and blocks the requester user from approving that same task. This is an initial maker-checker, role-scope, and jurisdiction-scope safeguard only; production authorization still needs parcel sensitivity checks, task assignment policy, and risk-based approval thresholds.

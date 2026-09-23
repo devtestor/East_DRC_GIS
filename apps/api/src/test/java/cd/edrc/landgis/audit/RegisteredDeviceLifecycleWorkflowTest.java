@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import cd.edrc.landgis.common.AuthenticatedActor;
 import cd.edrc.landgis.workflow.AddWorkflowTaskEvidenceRequest;
 import cd.edrc.landgis.workflow.DecideWorkflowTaskRequest;
+import cd.edrc.landgis.workflow.HighRiskWorkflowPolicy;
 import cd.edrc.landgis.workflow.WorkflowDecision;
 import cd.edrc.landgis.workflow.WorkflowEvidenceRequiredException;
 import cd.edrc.landgis.workflow.WorkflowEvidenceType;
@@ -172,7 +173,8 @@ class RegisteredDeviceLifecycleWorkflowTest {
                     taskRepository,
                     evidenceRepository,
                     Mockito.mock(WorkflowRoleScopeAuthorizer.class),
-                    Mockito.mock(WorkflowEvidenceValidator.class));
+                    Mockito.mock(WorkflowEvidenceValidator.class),
+                    new HighRiskWorkflowPolicy());
         }
     }
 }

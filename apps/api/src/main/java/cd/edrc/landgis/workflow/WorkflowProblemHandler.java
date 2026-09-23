@@ -87,4 +87,12 @@ public class WorkflowProblemHandler {
         problem.setTitle("Unsupported workflow task");
         return problem;
     }
+
+    @ExceptionHandler(PrivilegedWorkflowPolicyViolationException.class)
+    ProblemDetail handlePrivilegedWorkflowPolicyViolation(PrivilegedWorkflowPolicyViolationException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+        problem.setType(URI.create("https://edrc-land-gis.local/problems/privileged-workflow-policy-violation"));
+        problem.setTitle("Privileged workflow policy violation");
+        return problem;
+    }
 }

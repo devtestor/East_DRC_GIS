@@ -154,6 +154,9 @@ jobs:
       - name: Verify backup and recovery controls
         run: bash tools/ci/verify-backup-recovery.sh
 
+      - name: Verify privileged access controls
+        run: bash tools/ci/verify-privileged-access.sh
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:

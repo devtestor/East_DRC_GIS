@@ -12,168 +12,149 @@ public class WorkflowTaskService {
     private final WorkflowTaskEvidenceLinkRepository evidenceLinks;
     private final WorkflowRoleScopeAuthorizer roleScopes;
     private final WorkflowEvidenceValidator evidenceValidator;
+    private final HighRiskWorkflowPolicy highRiskWorkflowPolicy;
 
     public WorkflowTaskService(
             WorkflowTaskRepository tasks,
             WorkflowTaskEvidenceLinkRepository evidenceLinks,
             WorkflowRoleScopeAuthorizer roleScopes,
-            WorkflowEvidenceValidator evidenceValidator) {
+            WorkflowEvidenceValidator evidenceValidator,
+            HighRiskWorkflowPolicy highRiskWorkflowPolicy) {
         this.tasks = tasks;
         this.evidenceLinks = evidenceLinks;
         this.roleScopes = roleScopes;
         this.evidenceValidator = evidenceValidator;
+        this.highRiskWorkflowPolicy = highRiskWorkflowPolicy;
     }
 
     @Transactional
     public UUID openParcelTransitionTask(UUID parcelId, String requestedTransition, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "PARCEL_STATUS_TRANSITION",
                 "parcel",
                 parcelId,
                 requestedTransition,
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "CADASTRAL_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openRegisteredDeviceLifecycleTask(UUID deviceRecordId, String requestedAction, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "REGISTERED_DEVICE_LIFECYCLE",
                 "registered-device",
                 deviceRecordId,
                 requestedAction,
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "SECURITY_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openParcelGeometryApprovalTask(UUID geometryVersionId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "PARCEL_GEOMETRY_APPROVAL",
                 "parcel-geometry-version",
                 geometryVersionId,
                 "APPROVE_CURRENT_GEOMETRY",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "CADASTRAL_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openOwnershipInterestReviewTask(UUID ownershipInterestId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "OWNERSHIP_INTEREST_REVIEW",
                 "ownership-interest",
                 ownershipInterestId,
                 "VERIFY_OWNERSHIP_INTEREST",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "LAND_TITLE_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openParcelRestrictionReleaseTask(UUID restrictionId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "PARCEL_RESTRICTION_RELEASE",
                 "parcel-restriction",
                 restrictionId,
                 "RELEASE_RESTRICTION",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "LAND_TITLE_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openDisputeCaseReviewTask(UUID disputeCaseId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "DISPUTE_CASE_REVIEW",
                 "dispute-case",
                 disputeCaseId,
                 "START_DISPUTE_REVIEW",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "LAND_TITLE_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openDisputeCaseDecisionTask(UUID disputeCaseId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "DISPUTE_CASE_DECISION",
                 "dispute-case",
                 disputeCaseId,
                 "RECORD_DISPUTE_DECISION",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "LAND_TITLE_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openDisputeCaseReopenTask(UUID disputeCaseId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "DISPUTE_CASE_REOPEN",
                 "dispute-case",
                 disputeCaseId,
                 "REOPEN_DISPUTE_CASE",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "LAND_TITLE_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openParcelInformationReviewTask(UUID applicationId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "PARCEL_INFORMATION_REQUEST_REVIEW",
                 "parcel-information-application",
                 applicationId,
                 "APPROVE_PARCEL_INFORMATION_REQUEST",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "LAND_TITLE_OFFICER");
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openPilotSignoffTask(UUID signoffId, String requestedAction, String assignedToRole, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "PILOT_SIGNOFF_REVIEW",
                 "pilot-signoff",
                 signoffId,
                 requestedAction,
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 assignedToRole);
         return tasks.save(task).id();
     }
 
     @Transactional
     public UUID openPilotGoNoGoTask(UUID pilotId, AuthenticatedActor requestedBy) {
-        WorkflowTask task = new WorkflowTask(
-                UUID.randomUUID(),
+        WorkflowTask task = newControlledTask(
                 "PILOT_GO_NO_GO",
                 "pilot-readiness-record",
                 pilotId,
                 "APPROVE_PILOT_GO",
-                requestedBy.userId(),
-                requestedBy.username(),
+                requestedBy,
                 "PROVINCIAL_LAND_ADMINISTRATOR");
         return tasks.save(task).id();
     }
@@ -202,6 +183,7 @@ public class WorkflowTaskService {
     public WorkflowTask decideTask(UUID taskId, DecideWorkflowTaskRequest request, AuthenticatedActor decidedBy) {
         WorkflowTask task = getTask(taskId);
         if (request.decision() == WorkflowDecision.APPROVE) {
+            highRiskWorkflowPolicy.requireApprovalAllowed(task);
             task.validateApprovalBy(decidedBy.userId(), decidedBy.username());
             requireEvidence(taskId);
             task.approve(request.reason(), decidedBy.userId(), decidedBy.username());
@@ -247,5 +229,24 @@ public class WorkflowTaskService {
         if (evidenceLinks.countByTaskId(taskId) == 0) {
             throw new WorkflowEvidenceRequiredException(taskId);
         }
+    }
+
+    private WorkflowTask newControlledTask(
+            String workflowType,
+            String targetType,
+            UUID targetId,
+            String requestedAction,
+            AuthenticatedActor requestedBy,
+            String assignedToRole) {
+        highRiskWorkflowPolicy.requireAllowedOpening(workflowType, targetType, requestedAction, assignedToRole);
+        return new WorkflowTask(
+                UUID.randomUUID(),
+                workflowType,
+                targetType,
+                targetId,
+                requestedAction,
+                requestedBy.userId(),
+                requestedBy.username(),
+                assignedToRole);
     }
 }
