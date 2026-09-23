@@ -150,6 +150,34 @@ public class WorkflowTaskService {
         return tasks.save(task).id();
     }
 
+    @Transactional
+    public UUID openPilotSignoffTask(UUID signoffId, String requestedAction, String assignedToRole, AuthenticatedActor requestedBy) {
+        WorkflowTask task = new WorkflowTask(
+                UUID.randomUUID(),
+                "PILOT_SIGNOFF_REVIEW",
+                "pilot-signoff",
+                signoffId,
+                requestedAction,
+                requestedBy.userId(),
+                requestedBy.username(),
+                assignedToRole);
+        return tasks.save(task).id();
+    }
+
+    @Transactional
+    public UUID openPilotGoNoGoTask(UUID pilotId, AuthenticatedActor requestedBy) {
+        WorkflowTask task = new WorkflowTask(
+                UUID.randomUUID(),
+                "PILOT_GO_NO_GO",
+                "pilot-readiness-record",
+                pilotId,
+                "APPROVE_PILOT_GO",
+                requestedBy.userId(),
+                requestedBy.username(),
+                "PROVINCIAL_LAND_ADMINISTRATOR");
+        return tasks.save(task).id();
+    }
+
     @Transactional(readOnly = true)
     public List<WorkflowTaskResponse> listOpenTasks() {
         return tasks.findByStatusOrderByCreatedAtAsc(WorkflowTaskStatus.OPEN).stream()

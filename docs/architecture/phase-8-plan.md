@@ -20,6 +20,7 @@ The pilot is a proposed land-information and workflow evaluation. It must not is
 
 - Platform health: pilot readiness endpoint for staff checks.
 - Staff console: pilot readiness panel for operational review.
+- Pilot readiness: formal acceptance records, sign-offs, risks, evidence and go/no-go workflow.
 - Operations documentation: pilot runbook, UAT scenarios and migration rehearsal checklist.
 - Security documentation: approval gates remain enforced by workflow, role and maker-checker controls.
 
@@ -48,11 +49,20 @@ The pilot is a proposed land-information and workflow evaluation. It must not is
    - Run migration rehearsal, UAT and rollback drills.
    - Record go/no-go decision evidence.
 
+5. Acceptance Workflow
+   - Create one pilot readiness record per controlled pilot.
+   - Attach evidence references for charter, training, migration rehearsal, security sign-off, backup restore, UAT and incident response.
+   - Create required sign-off tasks for legal boundary, data protection, security, operations, migration, training, support and owner approval.
+   - Track blocking risks until they are mitigated, accepted or closed.
+   - Request final go/no-go only after all required sign-offs are approved and no blocking risks remain open.
+
 ## Phase 8 Acceptance Criteria
 
 - Pilot scope, roles, training, support model, stop conditions and rollback procedures are documented.
 - Staff-only readiness endpoint returns legal boundary, approval, adapter and pilot-scope signals.
 - Staff console displays readiness checks without exposing protected personal data.
+- Pilot acceptance workflow records sign-offs, risks, evidence and final go/no-go decisions with workflow tasks.
+- Final go approval is blocked until all required sign-offs are approved and blocking risks are no longer open.
 - Migration rehearsal checklist preserves source lineage and unresolved legal exceptions.
 - UAT scenarios cover citizen, staff, survey, dispute, document, payment and security flows.
 - Tests pass for backend readiness logic and frontend type checking.

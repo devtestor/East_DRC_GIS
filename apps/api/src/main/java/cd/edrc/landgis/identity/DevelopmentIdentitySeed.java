@@ -72,6 +72,7 @@ class DevelopmentIdentitySeed implements ApplicationRunner {
         ensureActiveMembership(userId, organizationId, "CADASTRAL_OFFICER");
         ensureActiveMembership(userId, organizationId, "LAND_TITLE_OFFICER");
         ensureActiveMembership(userId, organizationId, "SECURITY_OFFICER");
+        ensureActiveMembership(userId, organizationId, "PROVINCIAL_LAND_ADMINISTRATOR");
     }
 
     private void ensureActiveMembership(UUID userId, UUID organizationId, String roleCode) {

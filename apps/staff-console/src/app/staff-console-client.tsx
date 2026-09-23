@@ -195,6 +195,47 @@ type PilotReadinessCheck = {
   summary: string;
 };
 
+type FormalPilotResponse = {
+  id: string;
+  title: string;
+  geographyScope: string;
+  pilotOwner: string;
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  status: string;
+  finalDecisionReason: string | null;
+  finalDecisionTaskId: string | null;
+  signoffs: FormalPilotSignoffResponse[];
+  risks: FormalPilotRiskResponse[];
+  evidence: FormalPilotEvidenceResponse[];
+};
+
+type FormalPilotSignoffResponse = {
+  id: string;
+  signoffType: string;
+  requiredRole: string;
+  status: string;
+  summary: string;
+  workflowTaskId: string | null;
+};
+
+type FormalPilotRiskResponse = {
+  id: string;
+  severity: string;
+  status: string;
+  title: string;
+  mitigationPlan: string;
+  blockingGoLive: boolean;
+};
+
+type FormalPilotEvidenceResponse = {
+  id: string;
+  evidenceType: string;
+  referenceType: string;
+  externalReference: string | null;
+  summary: string;
+};
+
 const defaultApiUrl = "http://localhost:8080";
 
 export function StaffConsoleClient() {
@@ -239,6 +280,9 @@ export function StaffConsoleClient() {
   const [notificationResult, setNotificationResult] = useState<ApiResult | null>(null);
   const [pilotReadiness, setPilotReadiness] = useState<PilotReadinessResponse | null>(null);
   const [pilotReadinessResult, setPilotReadinessResult] = useState<ApiResult | null>(null);
+  const [formalPilots, setFormalPilots] = useState<FormalPilotResponse[]>([]);
+  const [formalPilotId, setFormalPilotId] = useState("");
+  const [formalPilotResult, setFormalPilotResult] = useState<ApiResult | null>(null);
   const authHeader = useMemo(() => `Basic ${btoa(`${email}:${password}`)}`, [email, password]);
   const selectedWorkflowTask = useMemo(
     () => workflowTasks.find((task) => task.id === workflowTaskId) ?? null,
@@ -287,6 +331,110 @@ export function StaffConsoleClient() {
       setNotifications((current) => current.map((notification) =>
         notification.id === notificationId ? { ...notification, read: true } : notification
       ));
+    }
+  }
+
+  async function createFormalPilot(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const result = await callApi("/api/v1/pilots", {
+      method: "POST",
+      payload: {
+        title: data.get("title"),
+        geographyScope: data.get("geographyScope"),
+        pilotOwner: data.get("pilotOwner"),
+        plannedStartDate: data.get("plannedStartDate") || null,
+        plannedEndDate: data.get("plannedEndDate") || null
+      }
+    });
+    setFormalPilotResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as FormalPilotResponse;
+      setFormalPilotId(parsed.id);
+      setFormalPilots((current) => [parsed, ...current.filter((pilot) => pilot.id !== parsed.id)]);
+    }
+  }
+
+  async function loadFormalPilots() {
+    const result = await callApi("/api/v1/pilots");
+    setFormalPilotResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as FormalPilotResponse[];
+      setFormalPilots(parsed);
+      if (!formalPilotId && parsed.length > 0) setFormalPilotId(parsed[0].id);
+    }
+  }
+
+  async function addFormalPilotSignoff(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetPilotId = String(data.get("pilotId") ?? "").trim();
+    const result = await callApi(`/api/v1/pilots/${targetPilotId}/signoffs`, {
+      method: "POST",
+      payload: {
+        signoffType: data.get("signoffType"),
+        requiredRole: data.get("requiredRole"),
+        summary: data.get("summary")
+      }
+    });
+    await refreshFormalPilotResult(result, targetPilotId);
+  }
+
+  async function addFormalPilotRisk(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetPilotId = String(data.get("pilotId") ?? "").trim();
+    const result = await callApi(`/api/v1/pilots/${targetPilotId}/risks`, {
+      method: "POST",
+      payload: {
+        severity: data.get("severity"),
+        title: data.get("title"),
+        mitigationPlan: data.get("mitigationPlan"),
+        blockingGoLive: data.get("blockingGoLive") === "on"
+      }
+    });
+    await refreshFormalPilotResult(result, targetPilotId);
+  }
+
+  async function updateFormalPilotRisk(riskId: string, status: string, blockingGoLive: boolean) {
+    const result = await callApi(`/api/v1/pilots/${formalPilotId}/risks/${riskId}`, {
+      method: "PATCH",
+      payload: { status, blockingGoLive }
+    });
+    await refreshFormalPilotResult(result, formalPilotId);
+  }
+
+  async function addFormalPilotEvidence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetPilotId = String(data.get("pilotId") ?? "").trim();
+    const result = await callApi(`/api/v1/pilots/${targetPilotId}/evidence`, {
+      method: "POST",
+      payload: {
+        evidenceType: data.get("evidenceType"),
+        referenceType: data.get("referenceType"),
+        externalReference: data.get("externalReference"),
+        summary: data.get("summary")
+      }
+    });
+    await refreshFormalPilotResult(result, targetPilotId);
+  }
+
+  async function requestFormalPilotGoNoGo() {
+    const targetPilotId = formalPilotId.trim();
+    const result = await callApi(`/api/v1/pilots/${targetPilotId}/go-no-go-requests`, { method: "POST" });
+    await refreshFormalPilotResult(result, targetPilotId);
+  }
+
+  async function refreshFormalPilotResult(result: ApiResult, targetPilotId: string) {
+    setFormalPilotResult(result);
+    if (result.ok && targetPilotId) {
+      const refreshed = await callApi(`/api/v1/pilots/${targetPilotId}`);
+      setFormalPilotResult(refreshed);
+      if (refreshed.ok) {
+        const parsed = JSON.parse(refreshed.body) as FormalPilotResponse;
+        setFormalPilots((current) => [parsed, ...current.filter((pilot) => pilot.id !== parsed.id)]);
+      }
     }
   }
 
@@ -654,8 +802,12 @@ export function StaffConsoleClient() {
               ? `/api/v1/parcels/${parcelId.trim()}/restrictions/tasks/${targetTaskId}/decisions`
             : selectedTask?.workflowType === "DISPUTE_CASE_REVIEW"
               ? `/api/v1/parcels/${parcelId.trim()}/disputes/tasks/${targetTaskId}/decisions`
-              : selectedTask?.workflowType === "PARCEL_INFORMATION_REQUEST_REVIEW"
+            : selectedTask?.workflowType === "PARCEL_INFORMATION_REQUEST_REVIEW"
                 ? `/api/v1/applications/tasks/${targetTaskId}/decisions`
+                : selectedTask?.workflowType === "PILOT_SIGNOFF_REVIEW"
+                  ? `/api/v1/pilots/signoffs/tasks/${targetTaskId}/decisions`
+                  : selectedTask?.workflowType === "PILOT_GO_NO_GO"
+                    ? `/api/v1/pilots/tasks/${targetTaskId}/decisions`
                 : `/api/v1/workflow/tasks/${targetTaskId}/decisions`;
     const result = await callApi(decisionPath, {
       method: "POST",
@@ -905,6 +1057,99 @@ export function StaffConsoleClient() {
         ) : (
           <p className="hint">Aucun controle charge.</p>
         )}
+      </section>
+
+      <section className="panel" aria-labelledby="formal-pilot-heading">
+        <div className="section-row">
+          <div>
+            <h2 id="formal-pilot-heading">Acceptation pilote</h2>
+            <p className="hint">
+              Dossier go/no-go auditable avec signatures, risques, preuves et decision humaine.
+            </p>
+          </div>
+          <button type="button" onClick={loadFormalPilots}>Charger</button>
+        </div>
+
+        <form className="nested-form" onSubmit={createFormalPilot}>
+          <h3>Creer un dossier pilote</h3>
+          <div className="form-grid">
+            <label>Titre<input name="title" defaultValue="Pilote controle - zone fictive Nord-Kivu" /></label>
+            <label>Portee geographique<input name="geographyScope" defaultValue="Commune fictive de Goma, donnees fictives uniquement" /></label>
+            <label>Responsable pilote<input name="pilotOwner" defaultValue="Equipe provinciale fictive" /></label>
+            <label>Debut prevu<input name="plannedStartDate" type="date" defaultValue="2026-10-01" /></label>
+            <label>Fin prevue<input name="plannedEndDate" type="date" defaultValue="2026-12-31" /></label>
+          </div>
+          <button type="submit">Creer le dossier</button>
+        </form>
+
+        <div className="form-grid">
+          <label>
+            Dossier pilote actif
+            <select value={formalPilotId} onChange={(event) => setFormalPilotId(event.target.value)}>
+              <option value="">Selectionner un dossier</option>
+              {formalPilots.map((pilot) => (
+                <option key={pilot.id} value={pilot.id}>{pilot.title} · {pilot.status}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <form className="nested-form" onSubmit={addFormalPilotSignoff}>
+          <h3>Ajouter une signature requise</h3>
+          <input type="hidden" name="pilotId" value={formalPilotId} />
+          <div className="form-grid">
+            <label>Type<select name="signoffType" defaultValue="LEGAL_BOUNDARY"><option>LEGAL_BOUNDARY</option><option>DATA_PROTECTION</option><option>SECURITY</option><option>OPERATIONS</option><option>MIGRATION</option><option>TRAINING</option><option>SUPPORT</option><option>OWNER_APPROVAL</option></select></label>
+            <label>Role requis<input name="requiredRole" defaultValue="PROVINCIAL_LAND_ADMINISTRATOR" /></label>
+            <label>Resume<input name="summary" defaultValue="Controle pilote a approuver avec preuve liee" /></label>
+          </div>
+          <button type="submit">Creer la tache de signature</button>
+        </form>
+
+        <form className="nested-form" onSubmit={addFormalPilotRisk}>
+          <h3>Ajouter un risque pilote</h3>
+          <input type="hidden" name="pilotId" value={formalPilotId} />
+          <div className="form-grid">
+            <label>Severite<select name="severity" defaultValue="HIGH"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+            <label>Titre<input name="title" defaultValue="Autorisation institutionnelle a confirmer" /></label>
+            <label>Mitigation<input name="mitigationPlan" defaultValue="Obtenir approbation ecrite avant tout usage officiel" /></label>
+            <label className="checkbox-label"><input type="checkbox" name="blockingGoLive" defaultChecked />Bloque le go-live</label>
+          </div>
+          <button type="submit">Ajouter le risque</button>
+        </form>
+
+        <form className="nested-form" onSubmit={addFormalPilotEvidence}>
+          <h3>Ajouter une preuve</h3>
+          <input type="hidden" name="pilotId" value={formalPilotId} />
+          <div className="form-grid">
+            <label>Type<select name="evidenceType" defaultValue="CHARTER"><option>CHARTER</option><option>TRAINING_RECORD</option><option>MIGRATION_REHEARSAL</option><option>SECURITY_SIGNOFF</option><option>BACKUP_RESTORE</option><option>UAT_RESULT</option><option>INCIDENT_RESPONSE</option><option>AUTHORIZATION_NOTE</option><option>OTHER</option></select></label>
+            <label>Reference<input name="referenceType" defaultValue="document-or-runbook" /></label>
+            <label>Reference externe<input name="externalReference" defaultValue="docs/operations/pilot-readiness-runbook.md" /></label>
+            <label>Resume<input name="summary" defaultValue="Preuve operationnelle liee au dossier pilote" /></label>
+          </div>
+          <button type="submit">Attacher la preuve</button>
+        </form>
+
+        <button type="button" onClick={requestFormalPilotGoNoGo}>Demander la revue go/no-go</button>
+        <Result result={formalPilotResult} />
+        {formalPilots.filter((pilot) => pilot.id === formalPilotId).map((pilot) => (
+          <article className="record-card" key={pilot.id}>
+            <strong>{pilot.title} · {pilot.status}</strong>
+            <span>{pilot.geographyScope}</span>
+            <small>{pilot.signoffs.length} signature(s) · {pilot.risks.length} risque(s) · {pilot.evidence.length} preuve(s)</small>
+            {pilot.finalDecisionTaskId ? <small>Tache finale: {pilot.finalDecisionTaskId}</small> : null}
+            {pilot.signoffs.map((signoff) => (
+              <small key={signoff.id}>{signoff.signoffType}: {signoff.status} · tache {signoff.workflowTaskId ?? "non creee"}</small>
+            ))}
+            {pilot.risks.map((risk) => (
+              <div className="section-row" key={risk.id}>
+                <small>{risk.severity} · {risk.status} · {risk.title}</small>
+                {risk.status === "OPEN" ? (
+                  <button type="button" onClick={() => updateFormalPilotRisk(risk.id, "MITIGATED", false)}>Marquer mitige</button>
+                ) : null}
+              </div>
+            ))}
+          </article>
+        ))}
       </section>
 
       <section className="workbench" aria-label="Flux Phase 2">

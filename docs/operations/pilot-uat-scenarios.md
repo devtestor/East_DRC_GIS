@@ -15,6 +15,11 @@
 - Confirm duplicate active UPI values are rejected.
 - Move a parcel through explicit state transitions.
 - Verify the pilot readiness panel requires staff authentication.
+- Create a pilot readiness record.
+- Add all required pilot sign-off tasks.
+- Attach readiness evidence references.
+- Add a blocking risk and confirm final GO review is blocked.
+- Mark the blocking risk mitigated and confirm final GO review can be requested after all sign-offs are approved.
 
 ## Cadastral Operations
 

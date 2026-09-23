@@ -19,6 +19,16 @@ This runbook supports a controlled pilot of the proposed land-information and wo
 - Rollback drill completed and evidence stored.
 - Data migration trial reconciled with unresolved exceptions documented.
 
+## Acceptance Workflow
+
+1. Create a pilot readiness record in the staff console.
+2. Attach readiness evidence references for charter, UAT, training, migration rehearsal, security checks, backup restore and incident response.
+3. Create sign-off tasks for legal boundary, data protection, security, operations, migration, training, support and owner approval.
+4. Claim and decide sign-off tasks through the workflow queue, with evidence attached to each task before approval.
+5. Add pilot risks and mark each blocking risk as mitigated, accepted or closed before requesting final GO review.
+6. Request final go/no-go review only after the readiness checks are complete.
+7. Record final GO or NO-GO through the pilot workflow task. A GO decision is an operational pilot acceptance only; it is not official registry authorization.
+
 ## Stop Conditions
 
 Pause the pilot if any of the following occur:

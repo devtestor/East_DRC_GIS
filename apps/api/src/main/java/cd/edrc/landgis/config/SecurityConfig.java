@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/disputes/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/parties/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/parcels/**").hasRole("STAFF")
+                        .requestMatchers("/api/v1/pilots/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/workflow/**").hasRole("STAFF")
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults())
