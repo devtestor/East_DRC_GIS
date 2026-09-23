@@ -94,6 +94,31 @@ class PilotReadinessController {
         return pilots.addEvidence(pilotId, request, actors.requireActor(principal == null ? null : principal.getName()));
     }
 
+    @PostMapping("/{pilotId}/operational-gates")
+    @ResponseStatus(HttpStatus.CREATED)
+    PilotOperationalGateResponse addOperationalGate(
+            @PathVariable UUID pilotId,
+            @Valid @RequestBody CreatePilotOperationalGateRequest request,
+            Principal principal) {
+        return pilots.addOperationalGate(
+                pilotId,
+                request,
+                actors.requireActor(principal == null ? null : principal.getName()));
+    }
+
+    @PatchMapping("/{pilotId}/operational-gates/{gateId}")
+    PilotOperationalGateResponse decideOperationalGate(
+            @PathVariable UUID pilotId,
+            @PathVariable UUID gateId,
+            @Valid @RequestBody DecidePilotOperationalGateRequest request,
+            Principal principal) {
+        return pilots.decideOperationalGate(
+                pilotId,
+                gateId,
+                request,
+                actors.requireActor(principal == null ? null : principal.getName()));
+    }
+
     @PostMapping("/{pilotId}/go-no-go-requests")
     PilotWorkflowResponse requestGoNoGo(@PathVariable UUID pilotId, Principal principal) {
         return pilots.requestGoNoGo(pilotId, actors.requireActor(principal == null ? null : principal.getName()));

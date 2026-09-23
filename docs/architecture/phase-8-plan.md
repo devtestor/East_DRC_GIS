@@ -56,6 +56,13 @@ The pilot is a proposed land-information and workflow evaluation. It must not is
    - Track blocking risks until they are mitigated, accepted or closed.
    - Request final go/no-go only after all required sign-offs are approved and no blocking risks remain open.
 
+6. Post-Pilot Production Readiness Gates
+   - Record production authorization as a distinct operational gate.
+   - Record environment promotion readiness before moving from pilot to a shared or production-like environment.
+   - Record real integration onboarding readiness for identity, treasury, payment, court, tax, planning, notification and signature providers.
+   - Record migration rehearsal execution and reconciliation evidence.
+   - Treat passed or explicitly waived gates as accepted; pending or blocked gates prevent final GO.
+
 ## Phase 8 Acceptance Criteria
 
 - Pilot scope, roles, training, support model, stop conditions and rollback procedures are documented.
@@ -63,6 +70,7 @@ The pilot is a proposed land-information and workflow evaluation. It must not is
 - Staff console displays readiness checks without exposing protected personal data.
 - Pilot acceptance workflow records sign-offs, risks, evidence and final go/no-go decisions with workflow tasks.
 - Final go approval is blocked until all required sign-offs are approved and blocking risks are no longer open.
+- Final go approval is also blocked until production authorization, environment promotion, integration onboarding and migration rehearsal gates are passed or waived.
 - Migration rehearsal checklist preserves source lineage and unresolved legal exceptions.
 - UAT scenarios cover citizen, staff, survey, dispute, document, payment and security flows.
 - Tests pass for backend readiness logic and frontend type checking.

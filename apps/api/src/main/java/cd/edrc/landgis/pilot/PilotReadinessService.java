@@ -29,6 +29,7 @@ public class PilotReadinessService {
     private final PilotSignoffRepository signoffs;
     private final PilotRiskRepository risks;
     private final PilotEvidenceRepository evidence;
+    private final PilotOperationalGateRepository operationalGates;
     private final WorkflowTaskService workflowTasks;
     private final AuditService auditService;
 
@@ -37,12 +38,14 @@ public class PilotReadinessService {
             PilotSignoffRepository signoffs,
             PilotRiskRepository risks,
             PilotEvidenceRepository evidence,
+            PilotOperationalGateRepository operationalGates,
             WorkflowTaskService workflowTasks,
             AuditService auditService) {
         this.pilots = pilots;
         this.signoffs = signoffs;
         this.risks = risks;
         this.evidence = evidence;
+        this.operationalGates = operationalGates;
         this.workflowTasks = workflowTasks;
         this.auditService = auditService;
     }
@@ -179,6 +182,47 @@ public class PilotReadinessService {
     }
 
     @Transactional
+    public PilotOperationalGateResponse addOperationalGate(
+            UUID pilotId,
+            CreatePilotOperationalGateRequest request,
+            AuthenticatedActor actor) {
+        PilotReadinessRecord pilot = requirePilot(pilotId);
+        PilotOperationalGate gate = operationalGates.save(new PilotOperationalGate(
+                UUID.randomUUID(),
+                pilot.id(),
+                request.gateType(),
+                request.ownerRole(),
+                request.summary(),
+                blankToNull(request.evidenceReference()),
+                actor.userId(),
+                actor.username()));
+        audit("pilot.operational-gate-created", pilot, actor, Map.of(
+                "gateType", gate.gateType().name(),
+                "ownerRole", gate.ownerRole()));
+        return PilotOperationalGateResponse.from(gate);
+    }
+
+    @Transactional
+    public PilotOperationalGateResponse decideOperationalGate(
+            UUID pilotId,
+            UUID gateId,
+            DecidePilotOperationalGateRequest request,
+            AuthenticatedActor actor) {
+        PilotReadinessRecord pilot = requirePilot(pilotId);
+        PilotOperationalGate gate = operationalGates.findById(gateId)
+                .filter(candidate -> candidate.pilotId().equals(pilotId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pilot operational gate not found"));
+        if (request.status() == PilotOperationalGateStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gate decision cannot remain PENDING");
+        }
+        gate.decide(request.status(), request.evidenceReference(), actor.userId(), actor.username());
+        audit("pilot.operational-gate-decided", pilot, actor, Map.of(
+                "gateType", gate.gateType().name(),
+                "status", gate.status().name()));
+        return PilotOperationalGateResponse.from(gate);
+    }
+
+    @Transactional
     public PilotWorkflowResponse requestGoNoGo(UUID pilotId, AuthenticatedActor actor) {
         PilotReadinessRecord pilot = requirePilot(pilotId);
         requirePilotReadyForGoReview(pilot.id());
@@ -217,13 +261,19 @@ public class PilotReadinessService {
         long pending = signoffs.countByPilotIdAndStatus(pilotId, PilotSignoffStatus.PENDING);
         long rejected = signoffs.countByPilotIdAndStatus(pilotId, PilotSignoffStatus.REJECTED);
         long openBlockingRisks = risks.countByPilotIdAndBlockingGoLiveTrueAndStatus(pilotId, PilotRiskStatus.OPEN);
+        Set<PilotOperationalGateType> acceptedGates = operationalGates.findByPilotIdOrderByCreatedAtAsc(pilotId).stream()
+                .filter(gate -> gate.status() == PilotOperationalGateStatus.PASSED
+                        || gate.status() == PilotOperationalGateStatus.WAIVED)
+                .map(PilotOperationalGate::gateType)
+                .collect(Collectors.toSet());
         if (!approvedTypes.containsAll(Set.of(PilotSignoffType.values()))
+                || !acceptedGates.containsAll(Set.of(PilotOperationalGateType.values()))
                 || pending > 0
                 || rejected > 0
                 || openBlockingRisks > 0) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Pilot cannot request GO until every required signoff is approved and no blocking risks remain open");
+                    "Pilot cannot request GO until every required signoff and operational gate is accepted and no blocking risks remain open");
         }
     }
 
@@ -237,7 +287,8 @@ public class PilotReadinessService {
                 record,
                 signoffs.findByPilotIdOrderByCreatedAtAsc(record.id()),
                 risks.findByPilotIdOrderByCreatedAtAsc(record.id()),
-                evidence.findByPilotIdOrderByAddedAtDesc(record.id()));
+                evidence.findByPilotIdOrderByAddedAtDesc(record.id()),
+                operationalGates.findByPilotIdOrderByCreatedAtAsc(record.id()));
     }
 
     private void requireTask(WorkflowTask task, String workflowType, String targetType) {

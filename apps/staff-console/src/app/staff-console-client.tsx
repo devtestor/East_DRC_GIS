@@ -208,6 +208,7 @@ type FormalPilotResponse = {
   signoffs: FormalPilotSignoffResponse[];
   risks: FormalPilotRiskResponse[];
   evidence: FormalPilotEvidenceResponse[];
+  operationalGates: FormalPilotOperationalGateResponse[];
 };
 
 type FormalPilotSignoffResponse = {
@@ -234,6 +235,15 @@ type FormalPilotEvidenceResponse = {
   referenceType: string;
   externalReference: string | null;
   summary: string;
+};
+
+type FormalPilotOperationalGateResponse = {
+  id: string;
+  gateType: string;
+  status: string;
+  ownerRole: string;
+  summary: string;
+  evidenceReference: string | null;
 };
 
 const defaultApiUrl = "http://localhost:8080";
@@ -418,6 +428,30 @@ export function StaffConsoleClient() {
       }
     });
     await refreshFormalPilotResult(result, targetPilotId);
+  }
+
+  async function addFormalPilotOperationalGate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetPilotId = String(data.get("pilotId") ?? "").trim();
+    const result = await callApi(`/api/v1/pilots/${targetPilotId}/operational-gates`, {
+      method: "POST",
+      payload: {
+        gateType: data.get("gateType"),
+        ownerRole: data.get("ownerRole"),
+        summary: data.get("summary"),
+        evidenceReference: data.get("evidenceReference") || null
+      }
+    });
+    await refreshFormalPilotResult(result, targetPilotId);
+  }
+
+  async function decideFormalPilotOperationalGate(gateId: string, status: string) {
+    const result = await callApi(`/api/v1/pilots/${formalPilotId}/operational-gates/${gateId}`, {
+      method: "PATCH",
+      payload: { status, evidenceReference: "staff-console-readiness-evidence" }
+    });
+    await refreshFormalPilotResult(result, formalPilotId);
   }
 
   async function requestFormalPilotGoNoGo() {
@@ -1129,13 +1163,25 @@ export function StaffConsoleClient() {
           <button type="submit">Attacher la preuve</button>
         </form>
 
+        <form className="nested-form" onSubmit={addFormalPilotOperationalGate}>
+          <h3>Ajouter un controle operationnel</h3>
+          <input type="hidden" name="pilotId" value={formalPilotId} />
+          <div className="form-grid">
+            <label>Controle<select name="gateType" defaultValue="PRODUCTION_AUTHORIZATION"><option>PRODUCTION_AUTHORIZATION</option><option>ENVIRONMENT_PROMOTION</option><option>INTEGRATION_ONBOARDING</option><option>MIGRATION_REHEARSAL_EXECUTION</option></select></label>
+            <label>Role responsable<input name="ownerRole" defaultValue="PROVINCIAL_LAND_ADMINISTRATOR" /></label>
+            <label>Resume<input name="summary" defaultValue="Controle requis avant toute promotion post-pilote" /></label>
+            <label>Preuve<input name="evidenceReference" defaultValue="docs/operations/pilot-readiness-runbook.md" /></label>
+          </div>
+          <button type="submit">Creer le controle</button>
+        </form>
+
         <button type="button" onClick={requestFormalPilotGoNoGo}>Demander la revue go/no-go</button>
         <Result result={formalPilotResult} />
         {formalPilots.filter((pilot) => pilot.id === formalPilotId).map((pilot) => (
           <article className="record-card" key={pilot.id}>
             <strong>{pilot.title} · {pilot.status}</strong>
             <span>{pilot.geographyScope}</span>
-            <small>{pilot.signoffs.length} signature(s) · {pilot.risks.length} risque(s) · {pilot.evidence.length} preuve(s)</small>
+            <small>{pilot.signoffs.length} signature(s) · {pilot.risks.length} risque(s) · {pilot.evidence.length} preuve(s) · {pilot.operationalGates.length} controle(s)</small>
             {pilot.finalDecisionTaskId ? <small>Tache finale: {pilot.finalDecisionTaskId}</small> : null}
             {pilot.signoffs.map((signoff) => (
               <small key={signoff.id}>{signoff.signoffType}: {signoff.status} · tache {signoff.workflowTaskId ?? "non creee"}</small>
@@ -1145,6 +1191,14 @@ export function StaffConsoleClient() {
                 <small>{risk.severity} · {risk.status} · {risk.title}</small>
                 {risk.status === "OPEN" ? (
                   <button type="button" onClick={() => updateFormalPilotRisk(risk.id, "MITIGATED", false)}>Marquer mitige</button>
+                ) : null}
+              </div>
+            ))}
+            {pilot.operationalGates.map((gate) => (
+              <div className="section-row" key={gate.id}>
+                <small>{gate.gateType}: {gate.status} · {gate.summary}</small>
+                {gate.status === "PENDING" || gate.status === "BLOCKED" ? (
+                  <button type="button" onClick={() => decideFormalPilotOperationalGate(gate.id, "PASSED")}>Marquer passe</button>
                 ) : null}
               </div>
             ))}

@@ -63,6 +63,8 @@ class PilotReadinessServiceTest {
         when(fixture.pilots.findById(pilot.id())).thenReturn(Optional.of(pilot));
         when(fixture.signoffs.findByPilotIdOrderByCreatedAtAsc(pilot.id()))
                 .thenReturn(approvedSignoffs(pilot.id(), fixture.actor));
+        when(fixture.operationalGates.findByPilotIdOrderByCreatedAtAsc(pilot.id()))
+                .thenReturn(acceptedOperationalGates(pilot.id(), fixture.actor));
         when(fixture.risks.countByPilotIdAndBlockingGoLiveTrueAndStatus(pilot.id(), PilotRiskStatus.OPEN))
                 .thenReturn(1L);
 
@@ -79,6 +81,8 @@ class PilotReadinessServiceTest {
         when(fixture.pilots.findById(pilot.id())).thenReturn(Optional.of(pilot));
         when(fixture.signoffs.findByPilotIdOrderByCreatedAtAsc(pilot.id()))
                 .thenReturn(approvedSignoffs(pilot.id(), fixture.actor));
+        when(fixture.operationalGates.findByPilotIdOrderByCreatedAtAsc(pilot.id()))
+                .thenReturn(acceptedOperationalGates(pilot.id(), fixture.actor));
         when(fixture.risks.findByPilotIdOrderByCreatedAtAsc(pilot.id())).thenReturn(List.of());
         when(fixture.evidence.findByPilotIdOrderByAddedAtDesc(pilot.id())).thenReturn(List.of());
         when(fixture.workflow.openPilotGoNoGoTask(pilot.id(), fixture.actor)).thenReturn(taskId);
@@ -98,6 +102,20 @@ class PilotReadinessServiceTest {
                 any());
     }
 
+    @Test
+    void blocksGoNoGoRequestUntilEveryOperationalGateIsAccepted() {
+        Fixture fixture = new Fixture();
+        PilotReadinessRecord pilot = fixture.pilot();
+        when(fixture.pilots.findById(pilot.id())).thenReturn(Optional.of(pilot));
+        when(fixture.signoffs.findByPilotIdOrderByCreatedAtAsc(pilot.id()))
+                .thenReturn(approvedSignoffs(pilot.id(), fixture.actor));
+        when(fixture.operationalGates.findByPilotIdOrderByCreatedAtAsc(pilot.id())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> fixture.service.requestGoNoGo(pilot.id(), fixture.actor))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("operational gate");
+    }
+
     private static List<PilotSignoff> approvedSignoffs(UUID pilotId, AuthenticatedActor actor) {
         return java.util.Arrays.stream(PilotSignoffType.values())
                 .map(type -> {
@@ -115,11 +133,30 @@ class PilotReadinessServiceTest {
                 .toList();
     }
 
+    private static List<PilotOperationalGate> acceptedOperationalGates(UUID pilotId, AuthenticatedActor actor) {
+        return java.util.Arrays.stream(PilotOperationalGateType.values())
+                .map(type -> {
+                    PilotOperationalGate gate = new PilotOperationalGate(
+                            UUID.randomUUID(),
+                            pilotId,
+                            type,
+                            "PROVINCIAL_LAND_ADMINISTRATOR",
+                            "Accepted " + type.name(),
+                            "evidence://" + type.name(),
+                            actor.userId(),
+                            actor.username());
+                    gate.decide(PilotOperationalGateStatus.PASSED, "evidence://" + type.name(), actor.userId(), actor.username());
+                    return gate;
+                })
+                .toList();
+    }
+
     private static class Fixture {
         private final PilotReadinessRecordRepository pilots = Mockito.mock(PilotReadinessRecordRepository.class);
         private final PilotSignoffRepository signoffs = Mockito.mock(PilotSignoffRepository.class);
         private final PilotRiskRepository risks = Mockito.mock(PilotRiskRepository.class);
         private final PilotEvidenceRepository evidence = Mockito.mock(PilotEvidenceRepository.class);
+        private final PilotOperationalGateRepository operationalGates = Mockito.mock(PilotOperationalGateRepository.class);
         private final WorkflowTaskService workflow = Mockito.mock(WorkflowTaskService.class);
         private final AuditService audit = Mockito.mock(AuditService.class);
         private final AuthenticatedActor actor = new AuthenticatedActor(
@@ -130,6 +167,7 @@ class PilotReadinessServiceTest {
                 signoffs,
                 risks,
                 evidence,
+                operationalGates,
                 workflow,
                 audit);
 

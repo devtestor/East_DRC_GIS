@@ -20,6 +20,8 @@
 - Attach readiness evidence references.
 - Add a blocking risk and confirm final GO review is blocked.
 - Mark the blocking risk mitigated and confirm final GO review can be requested after all sign-offs are approved.
+- Add production authorization, environment promotion, integration onboarding and migration rehearsal gates.
+- Confirm final GO review is blocked while any operational gate is pending or blocked.
 
 ## Cadastral Operations
 

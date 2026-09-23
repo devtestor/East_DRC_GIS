@@ -37,3 +37,5 @@
 - Confirm backup and restore have been tested.
 - Confirm rollback decision owner and stop conditions.
 - Confirm migrated records remain distinguishable from newly created pilot records.
+- Record the rehearsal result in the pilot operational gate `MIGRATION_REHEARSAL_EXECUTION`.
+- Do not mark the gate passed while reconciliation exceptions remain unresolved or formally accepted.

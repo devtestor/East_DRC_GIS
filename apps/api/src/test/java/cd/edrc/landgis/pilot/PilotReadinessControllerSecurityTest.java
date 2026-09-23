@@ -66,6 +66,7 @@ class PilotReadinessControllerSecurityTest {
                         OffsetDateTime.now(),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of()));
 
         mvc.perform(post("/api/v1/pilots")

@@ -21,12 +21,14 @@ public record PilotReadinessResponse(
         OffsetDateTime createdAt,
         List<PilotSignoffResponse> signoffs,
         List<PilotRiskResponse> risks,
-        List<PilotEvidenceResponse> evidence) {
+        List<PilotEvidenceResponse> evidence,
+        List<PilotOperationalGateResponse> operationalGates) {
     static PilotReadinessResponse from(
             PilotReadinessRecord record,
             List<PilotSignoff> signoffs,
             List<PilotRisk> risks,
-            List<PilotEvidence> evidence) {
+            List<PilotEvidence> evidence,
+            List<PilotOperationalGate> operationalGates) {
         return new PilotReadinessResponse(
                 record.id(),
                 record.title(),
@@ -43,6 +45,7 @@ public record PilotReadinessResponse(
                 record.createdAt(),
                 signoffs.stream().map(PilotSignoffResponse::from).toList(),
                 risks.stream().map(PilotRiskResponse::from).toList(),
-                evidence.stream().map(PilotEvidenceResponse::from).toList());
+                evidence.stream().map(PilotEvidenceResponse::from).toList(),
+                operationalGates.stream().map(PilotOperationalGateResponse::from).toList());
     }
 }

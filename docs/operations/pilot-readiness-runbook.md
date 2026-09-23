@@ -26,8 +26,10 @@ This runbook supports a controlled pilot of the proposed land-information and wo
 3. Create sign-off tasks for legal boundary, data protection, security, operations, migration, training, support and owner approval.
 4. Claim and decide sign-off tasks through the workflow queue, with evidence attached to each task before approval.
 5. Add pilot risks and mark each blocking risk as mitigated, accepted or closed before requesting final GO review.
-6. Request final go/no-go review only after the readiness checks are complete.
-7. Record final GO or NO-GO through the pilot workflow task. A GO decision is an operational pilot acceptance only; it is not official registry authorization.
+6. Add operational gates for production authorization, environment promotion, integration onboarding and migration rehearsal execution.
+7. Mark each operational gate passed only when evidence is available, or waived only with documented owner acceptance.
+8. Request final go/no-go review only after the readiness checks are complete.
+9. Record final GO or NO-GO through the pilot workflow task. A GO decision is an operational pilot acceptance only; it is not official registry authorization.
 
 ## Stop Conditions
 
@@ -38,6 +40,7 @@ Pause the pilot if any of the following occur:
 - A legal or cadastral update bypasses configured human approval.
 - A payment callback mutates registry state directly.
 - A production integration is used without written authority and credentials.
+- An operational gate is waived without a named owner and evidence reference.
 - A compromised staff account, service account or field device is suspected.
 - Audit events cannot be written or protected.
 - Backup restore fails during readiness testing.
