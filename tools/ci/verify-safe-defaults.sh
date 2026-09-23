@@ -12,8 +12,15 @@ grep -q 'contentSecurityPolicy' "$security_file"
 grep -q 'frameOptions' "$security_file"
 grep -q 'permissionsPolicy' "$security_file"
 
-if rg -n --hidden --glob '!*.lock' --glob '!.git/**' \
-  '(AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,})' "$root_dir"; then
+secret_pattern='AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}'
+if command -v rg >/dev/null 2>&1; then
+  secret_matches="$(rg -n --hidden --glob '!*.lock' --glob '!.git/**' "$secret_pattern" "$root_dir" || true)"
+else
+  secret_matches="$(grep -RInE --exclude='*.lock' --exclude-dir='.git' "$secret_pattern" "$root_dir" || true)"
+fi
+
+if [ -n "$secret_matches" ]; then
+  printf '%s\n' "$secret_matches"
   echo "Potential credential material found in the repository" >&2
   exit 1
 fi
