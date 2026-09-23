@@ -1,0 +1,63 @@
+groups:
+  - name: edrc-land-gis-api
+    rules:
+      - alert: ApiInstanceDown
+        expr: up{job="edrc-land-gis-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "EDRC Land GIS API target is down"
+          description: "Prometheus cannot scrape the API target for more than two minutes."
+
+      - alert: ApiHighServerErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="edrc-land-gis-api",status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count{job="edrc-land-gis-api"}[5m])), 1)
+          > 0.05
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "EDRC Land GIS API server error rate is high"
+          description: "More than 5 percent of API requests are returning 5xx responses."
+
+      - alert: ApiHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_server_requests_seconds_bucket{job="edrc-land-gis-api"}[5m])) by (le)
+          ) > 2
+        for: 10m
+        labels:
+          severity: medium
+        annotations:
+          summary: "EDRC Land GIS API p95 latency is high"
+          description: "API p95 latency has exceeded two seconds for ten minutes."
+
+      - alert: ApiJvmMemoryPressure
+        expr: |
+          sum(jvm_memory_used_bytes{job="edrc-land-gis-api",area="heap"})
+          /
+          sum(jvm_memory_max_bytes{job="edrc-land-gis-api",area="heap"})
+          > 0.85
+        for: 10m
+        labels:
+          severity: medium
+        annotations:
+          summary: "EDRC Land GIS API heap usage is high"
+          description: "Heap memory usage has exceeded 85 percent for ten minutes."
+
+      - alert: ApiDatabasePoolPressure
+        expr: |
+          hikaricp_connections_active{job="edrc-land-gis-api"}
+          /
+          clamp_min(hikaricp_connections_max{job="edrc-land-gis-api"}, 1)
+          > 0.8
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "EDRC Land GIS API database pool pressure is high"
+          description: "Active database connections have exceeded 80 percent of the configured pool."

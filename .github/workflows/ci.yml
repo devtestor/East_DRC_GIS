@@ -148,6 +148,9 @@ jobs:
       - name: Verify deployment readiness guardrails
         run: bash tools/ci/verify-deployment-readiness.sh
 
+      - name: Verify observability assets
+        run: bash tools/ci/verify-observability-assets.sh
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:

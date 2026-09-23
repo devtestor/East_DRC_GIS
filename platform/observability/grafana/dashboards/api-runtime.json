@@ -1,0 +1,48 @@
+{
+  "title": "EDRC Land GIS API Runtime",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "tags": ["edrc-land-gis", "api", "staging"],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "API Targets Up",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "sum(up{job=\"edrc-land-gis-api\"})"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Rate",
+      "gridPos": {"x": 6, "y": 0, "w": 9, "h": 4},
+      "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{job=\"edrc-land-gis-api\"}[5m]))"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "5xx Error Rate",
+      "gridPos": {"x": 15, "y": 0, "w": 9, "h": 4},
+      "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{job=\"edrc-land-gis-api\",status=~\"5..\"}[5m]))"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "P95 Latency",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 6},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"edrc-land-gis-api\"}[5m])) by (le))"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM Heap Used",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 6},
+      "targets": [{"expr": "sum(jvm_memory_used_bytes{job=\"edrc-land-gis-api\",area=\"heap\"})"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Database Connections",
+      "gridPos": {"x": 0, "y": 10, "w": 12, "h": 6},
+      "targets": [
+        {"expr": "hikaricp_connections_active{job=\"edrc-land-gis-api\"}", "legendFormat": "active"},
+        {"expr": "hikaricp_connections_idle{job=\"edrc-land-gis-api\"}", "legendFormat": "idle"}
+      ]
+    }
+  ]
+}

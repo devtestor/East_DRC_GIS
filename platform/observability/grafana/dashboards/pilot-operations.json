@@ -1,0 +1,45 @@
+{
+  "title": "EDRC Land GIS Pilot Operations",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "tags": ["edrc-land-gis", "pilot", "operations"],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Open Workflow Tasks",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "edrc_workflow_tasks_open_total"}]
+    },
+    {
+      "type": "stat",
+      "title": "Open Blocking Pilot Risks",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "edrc_pilot_blocking_risks_open_total"}]
+    },
+    {
+      "type": "stat",
+      "title": "Pending Pilot Gates",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "edrc_pilot_operational_gates_pending_total"}]
+    },
+    {
+      "type": "stat",
+      "title": "Failed Payment Callbacks",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "edrc_payment_callbacks_failed_total"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "API Error Rate By Status",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 6},
+      "targets": [{"expr": "sum(rate(http_server_requests_seconds_count{job=\"edrc-land-gis-api\",status=~\"4..|5..\"}[5m])) by (status)"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Audit Events Written",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 6},
+      "targets": [{"expr": "increase(edrc_audit_events_written_total[15m])"}]
+    }
+  ]
+}
