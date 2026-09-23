@@ -24,6 +24,18 @@ This runbook prepares a staging environment for technical validation. Staging is
 6. Confirm `/api/v1/platform/pilot-readiness` requires staff authentication.
 7. Confirm no development seed account is present unless this is an isolated local-only test.
 
+For local staging smoke validation:
+
+```bash
+tools/operations/run-staging-compose-smoke.sh
+```
+
+For an already running staging API:
+
+```bash
+API_URL=https://api.staging.example tools/operations/staging-smoke-test.sh
+```
+
 ## Rollback
 
 1. Stop incoming traffic.

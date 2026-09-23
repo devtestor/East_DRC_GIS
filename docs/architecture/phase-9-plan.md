@@ -16,6 +16,7 @@ Phase 9 does not deploy an official land registry. It produces deployable artifa
 - Terraform variable contract and guardrails.
 - Deployment readiness CI check.
 - Staging runbook and promotion checklist.
+- Staging smoke-test automation for local Compose and deployed API probes.
 
 ## Required Owner Decisions
 
@@ -34,3 +35,4 @@ Phase 9 does not deploy an official land registry. It produces deployable artifa
 - API deployment includes health probes and non-root container controls.
 - Promotion to pilot remains approval gated.
 - Documentation explicitly preserves the legal boundary.
+- Smoke tests verify readiness, public disclaimer and protected endpoint behavior.
