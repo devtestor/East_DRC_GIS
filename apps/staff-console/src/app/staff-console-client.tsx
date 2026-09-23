@@ -181,6 +181,20 @@ type NotificationResponse = {
   createdAt: string;
 };
 
+type PilotReadinessResponse = {
+  phase: string;
+  legalStatus: string;
+  generatedAt: string;
+  disclaimer: string;
+  checks: PilotReadinessCheck[];
+};
+
+type PilotReadinessCheck = {
+  key: string;
+  status: string;
+  summary: string;
+};
+
 const defaultApiUrl = "http://localhost:8080";
 
 export function StaffConsoleClient() {
@@ -223,6 +237,8 @@ export function StaffConsoleClient() {
   const [surveyResult, setSurveyResult] = useState<ApiResult | null>(null);
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [notificationResult, setNotificationResult] = useState<ApiResult | null>(null);
+  const [pilotReadiness, setPilotReadiness] = useState<PilotReadinessResponse | null>(null);
+  const [pilotReadinessResult, setPilotReadinessResult] = useState<ApiResult | null>(null);
   const authHeader = useMemo(() => `Basic ${btoa(`${email}:${password}`)}`, [email, password]);
   const selectedWorkflowTask = useMemo(
     () => workflowTasks.find((task) => task.id === workflowTaskId) ?? null,
@@ -253,6 +269,14 @@ export function StaffConsoleClient() {
     setNotificationResult(result);
     if (result.ok) {
       setNotifications(JSON.parse(result.body) as NotificationResponse[]);
+    }
+  }
+
+  async function loadPilotReadiness() {
+    const result = await callApi("/api/v1/platform/pilot-readiness");
+    setPilotReadinessResult(result);
+    if (result.ok) {
+      setPilotReadiness(JSON.parse(result.body) as PilotReadinessResponse);
     }
   }
 
@@ -846,6 +870,40 @@ export function StaffConsoleClient() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="panel" aria-labelledby="pilot-readiness-heading">
+        <div className="section-row">
+          <div>
+            <h2 id="pilot-readiness-heading">Preparation pilote</h2>
+            <p className="hint">
+              Controle de disponibilite pour un pilote limite. Ce controle ne vaut pas autorisation de registre officiel.
+            </p>
+          </div>
+          <button type="button" onClick={loadPilotReadiness}>Verifier</button>
+        </div>
+        <Result result={pilotReadinessResult} />
+        {pilotReadiness ? (
+          <div className="readiness-summary" aria-label="Etat de preparation pilote">
+            <div className="readiness-banner">
+              <strong>{pilotReadiness.phase}</strong>
+              <span>{pilotReadiness.legalStatus}</span>
+              <small>Genere le {new Date(pilotReadiness.generatedAt).toLocaleString("fr-CD")}</small>
+            </div>
+            <p className="hint">{pilotReadiness.disclaimer}</p>
+            <div className="readiness-grid">
+              {pilotReadiness.checks.map((check) => (
+                <article className={`readiness-check ${check.status.toLowerCase()}`} key={check.key}>
+                  <strong>{check.status}</strong>
+                  <span>{check.key}</span>
+                  <small>{check.summary}</small>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="hint">Aucun controle charge.</p>
         )}
       </section>
 

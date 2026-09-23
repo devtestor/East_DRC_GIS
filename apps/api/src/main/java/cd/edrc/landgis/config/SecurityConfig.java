@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/platform/disclaimer").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/platform/pilot-readiness").hasRole("STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/v1/public/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/identity/users").permitAll()
                         .requestMatchers("/api/v1/administrative-units/**").hasRole("STAFF")

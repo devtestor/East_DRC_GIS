@@ -27,6 +27,12 @@ POSTGRES_PORT=55432 docker compose up -d postgres
 DB_PORT=55432 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon :apps:api:bootRun
 ```
 
+If port `8080` is already in use, start the API on an alternate local port and update the staff-console API URL field:
+
+```bash
+DB_PORT=55432 API_PORT=8081 DEV_SEED_ENABLED=true JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew --no-daemon :apps:api:bootRun
+```
+
 ## Continuous Integration
 
 The checked-in GitHub Actions workflow runs on push and pull request. It currently performs:
@@ -40,8 +46,11 @@ The checked-in GitHub Actions workflow runs on push and pull request. It current
 - safe-default and credential-pattern checks;
 - CodeQL analysis for Java and TypeScript;
 - Trivy configuration scanning for high and critical findings.
+- API container build and vulnerability scan;
+- release bundle checksum and provenance attestation;
+- pilot deployment approval gate.
 
-Future hardening still needs signed artifacts, provenance attestations, and deployment gates. The backup script at `tools/operations/backup-restore-check.sh` creates a non-destructive logical backup for a separately approved restore rehearsal.
+The backup script at `tools/operations/backup-restore-check.sh` creates a non-destructive logical backup for a separately approved restore rehearsal.
 
 ## Local Staff Account
 
@@ -62,8 +71,4 @@ Local test URLs:
 
 Dispute lifecycle API examples are under `/api/v1/parcels/{parcelId}/disputes`: hearings, decision requests and decisions, reopen requests and decisions, and appeals. All are staff-protected and use fictional local data only.
 
-The staff console at `apps/staff-console` can use this account to create administrative units and draft parcels against the local API.
-
-## Known Workspace Issue
-
-The current workspace contains a read-only placeholder `.git` directory. It is not a valid Git repository, so normal `git status`, commits, and CI trigger behavior require environment cleanup or a fresh clone directory.
+The staff console at `apps/staff-console` can use this account to create administrative units, draft parcels and view staff-only pilot readiness checks against the local API.
