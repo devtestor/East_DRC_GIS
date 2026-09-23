@@ -151,6 +151,9 @@ jobs:
       - name: Verify observability assets
         run: bash tools/ci/verify-observability-assets.sh
 
+      - name: Verify backup and recovery controls
+        run: bash tools/ci/verify-backup-recovery.sh
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
