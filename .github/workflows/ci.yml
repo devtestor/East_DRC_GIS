@@ -231,9 +231,9 @@ jobs:
           cp apps/api/build/libs/*.jar release-bundle/
           cp -r apps/citizen-portal/.next release-bundle/citizen-portal-next
           cp -r apps/staff-console/.next release-bundle/staff-console-next
-          find release-bundle -type f ! -name SHA256SUMS -print0 \
-            | sort -z \
-            | xargs -0 sha256sum > release-bundle/SHA256SUMS
+          tar -czf edrc-land-gis-release-bundle.tar.gz -C release-bundle .
+          sha256sum edrc-land-gis-release-bundle.tar.gz > release-bundle/SHA256SUMS
+          mv edrc-land-gis-release-bundle.tar.gz release-bundle/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -243,7 +243,7 @@ jobs:
       - name: Attest release bundle provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: release-bundle/*
+          subject-path: release-bundle/edrc-land-gis-release-bundle.tar.gz
 
   container-security:
     name: API container build and scan
