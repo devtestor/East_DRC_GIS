@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: edrc-land-gis-api
+  namespace: edrc-land-gis
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: edrc-land-gis-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

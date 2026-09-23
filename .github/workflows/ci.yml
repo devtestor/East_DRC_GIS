@@ -145,6 +145,9 @@ jobs:
       - name: Verify safe application defaults
         run: bash tools/ci/verify-safe-defaults.sh
 
+      - name: Verify deployment readiness guardrails
+        run: bash tools/ci/verify-deployment-readiness.sh
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
