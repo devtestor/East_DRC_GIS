@@ -9,6 +9,15 @@ export type ApiResult = {
   body: string;
 };
 
+export type NotificationResponse = {
+  id: string;
+  notificationType: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+};
+
 type StaffConsoleCopy = Record<string, string>;
 
 export function StaffConsoleHero({
@@ -103,6 +112,93 @@ export function Result({ result }: Readonly<{ result: ApiResult | null }>) {
       <span>{result.ok ? "Succes" : `Erreur ${result.status ?? ""}`}</span>
       <pre>{result.body}</pre>
     </output>
+  );
+}
+
+export function ConnectionPanel({
+  apiUrl,
+  copy,
+  email,
+  onApiUrlChange,
+  onEmailChange,
+  onPasswordChange,
+  password
+}: Readonly<{
+  apiUrl: string;
+  copy: StaffConsoleCopy;
+  email: string;
+  onApiUrlChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  password: string;
+}>) {
+  return (
+    <section className="panel connection-panel" aria-labelledby="connection-heading">
+      <div>
+        <p className="eyebrow">{copy.connection}</p>
+        <h2 id="connection-heading">{copy.apiConnection}</h2>
+        <p className="hint">{copy.apiConnectionHint}</p>
+      </div>
+      <div className="form-grid">
+        <label>
+          {copy.apiUrl}
+          <input value={apiUrl} onChange={(event) => onApiUrlChange(event.target.value)} />
+        </label>
+        <label>
+          {copy.staffEmail}
+          <input value={email} onChange={(event) => onEmailChange(event.target.value)} />
+        </label>
+        <label>
+          {copy.password}
+          <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
+        </label>
+      </div>
+    </section>
+  );
+}
+
+export function NotificationPanel({
+  copy,
+  locale,
+  notifications,
+  onMarkRead,
+  onRefresh,
+  result
+}: Readonly<{
+  copy: StaffConsoleCopy;
+  locale: string;
+  notifications: NotificationResponse[];
+  onMarkRead: (notificationId: string) => void;
+  onRefresh: () => void;
+  result: ApiResult | null;
+}>) {
+  return (
+    <section className="panel notification-panel" aria-labelledby="notification-heading">
+      <div className="section-row">
+        <div>
+          <h2 id="notification-heading">{copy.operationalNotifications}</h2>
+          <p className="hint">{copy.notificationHint}</p>
+        </div>
+        <button type="button" onClick={onRefresh}>{copy.refresh}</button>
+      </div>
+      <Result result={result} />
+      {notifications.length === 0 ? <p className="hint">{copy.noneLoaded}</p> : (
+        <ul className="notification-list" aria-label={copy.operationalNotifications}>
+          {notifications.map((notification) => (
+            <li className={notification.read ? "notification read" : "notification"} key={notification.id}>
+              <div className="section-row">
+                <strong>{notification.title}</strong>
+                <small>{new Date(notification.createdAt).toLocaleString(locale)}</small>
+              </div>
+              <p>{notification.message}</p>
+              {!notification.read ? (
+                <button type="button" onClick={() => onMarkRead(notification.id)}>{copy.markRead}</button>
+              ) : <span className="notification-state">{copy.read}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

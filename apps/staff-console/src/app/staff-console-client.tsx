@@ -8,11 +8,14 @@ import {
   summarizeDocumentGovernance
 } from "./document-governance";
 import {
+  ConnectionPanel,
   formatBody,
   GeometryPreview,
+  NotificationPanel,
   Result,
   StaffConsoleHero,
-  type ApiResult
+  type ApiResult,
+  type NotificationResponse
 } from "./staff-console-components";
 import {
   staffConsoleCopy,
@@ -181,15 +184,6 @@ type SurveyResponse = {
   status: string;
   purpose: string;
   observationCount: number;
-};
-
-type NotificationResponse = {
-  id: string;
-  notificationType: string;
-  title: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
 };
 
 type PilotReadinessResponse = {
@@ -1453,54 +1447,24 @@ export function StaffConsoleClient() {
         workflowTaskCount={workflowTasks.length}
       />
 
-      <section className="panel connection-panel" aria-labelledby="connection-heading">
-        <div>
-          <p className="eyebrow">{t.connection}</p>
-          <h2 id="connection-heading">{t.apiConnection}</h2>
-          <p className="hint">{t.apiConnectionHint}</p>
-        </div>
-        <div className="form-grid">
-          <label>
-            {t.apiUrl}
-            <input value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} />
-          </label>
-          <label>
-            {t.staffEmail}
-            <input value={email} onChange={(event) => setEmail(event.target.value)} />
-          </label>
-          <label>
-            {t.password}
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          </label>
-        </div>
-      </section>
+      <ConnectionPanel
+        apiUrl={apiUrl}
+        copy={t}
+        email={email}
+        onApiUrlChange={setApiUrl}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        password={password}
+      />
 
-      <section className="panel notification-panel" aria-labelledby="notification-heading">
-        <div className="section-row">
-          <div>
-            <h2 id="notification-heading">{t.operationalNotifications}</h2>
-            <p className="hint">{t.notificationHint}</p>
-          </div>
-          <button type="button" onClick={loadNotifications}>{t.refresh}</button>
-        </div>
-        <Result result={notificationResult} />
-        {notifications.length === 0 ? <p className="hint">{t.noneLoaded}</p> : (
-          <ul className="notification-list" aria-label={t.operationalNotifications}>
-            {notifications.map((notification) => (
-              <li className={notification.read ? "notification read" : "notification"} key={notification.id}>
-                <div className="section-row">
-                  <strong>{notification.title}</strong>
-                  <small>{new Date(notification.createdAt).toLocaleString(locale)}</small>
-                </div>
-                <p>{notification.message}</p>
-                {!notification.read ? (
-                  <button type="button" onClick={() => markNotificationRead(notification.id)}>{t.markRead}</button>
-                ) : <span className="notification-state">{t.read}</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <NotificationPanel
+        copy={t}
+        locale={locale}
+        notifications={notifications}
+        onMarkRead={markNotificationRead}
+        onRefresh={loadNotifications}
+        result={notificationResult}
+      />
 
       <section className="panel" aria-labelledby="document-intake-heading">
         <div className="section-row">
