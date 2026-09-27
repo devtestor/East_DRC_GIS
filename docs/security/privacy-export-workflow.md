@@ -29,3 +29,11 @@ Requests that require approval but have a redaction plan open a workflow task as
 ## Approved requests
 
 Approval records permission to proceed with a future export-generation step. This phase does not generate export files and does not expose protected content through the governance API.
+
+## Export packages
+
+An approved request can be converted into one governed export package. Package generation records the exact source document version, manifest checksum, package checksum, sandbox object-storage key, expiry time and generating actor.
+
+The delivery token is returned only when the package is created. The platform stores only the token hash. Download requires staff authentication and the unexpired token, and the package checksum is verified immediately before content is returned.
+
+Export package notifications must not include sensitive ownership, legal, financial or identity details in unsecured SMS or email. Notifications should only state that an action is available inside the authenticated portal.

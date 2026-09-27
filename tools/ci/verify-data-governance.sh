@@ -8,10 +8,12 @@ required_files=(
   "apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java"
   "apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java"
   "apps/api/src/main/resources/db/migration/V031__governed_export_requests.sql"
+  "apps/api/src/main/resources/db/migration/V032__governed_export_packages.sql"
   "docs/security/data-governance-retention.md"
   "docs/security/privacy-export-workflow.md"
   "docs/architecture/phase-14-plan.md"
   "docs/architecture/phase-15-plan.md"
+  "docs/architecture/phase-16-plan.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -28,7 +30,14 @@ grep -q "ACTIVE_LEGAL_HOLD" apps/api/src/main/java/cd/edrc/landgis/governance/Da
 grep -q "REDACTION_REQUIRED" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
 grep -q "DOCUMENT_EXPORT_REVIEW" apps/api/src/main/java/cd/edrc/landgis/workflow/HighRiskWorkflowPolicy.java
 grep -q "CREATE TABLE governance.export_requests" apps/api/src/main/resources/db/migration/V031__governed_export_requests.sql
+grep -q "CREATE TABLE governance.export_packages" apps/api/src/main/resources/db/migration/V032__governed_export_packages.sql
+grep -q "export_packages_request_unique_idx" apps/api/src/main/resources/db/migration/V032__governed_export_packages.sql
+grep -q "token_sha256" apps/api/src/main/resources/db/migration/V032__governed_export_packages.sql
 grep -q "APPROVE_DOCUMENT_EXPORT" apps/api/src/main/java/cd/edrc/landgis/workflow/WorkflowTaskService.java
+grep -q "document-export-package-generated" apps/api/src/main/java/cd/edrc/landgis/governance/DocumentExportPackageService.java
+grep -q "document-export-package-downloaded" apps/api/src/main/java/cd/edrc/landgis/governance/DocumentExportPackageService.java
 grep -q "blocksAutomatedDispositionWhenDocumentHasActiveLegalHold" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "blocksSensitiveExportWithoutRedactionAndApproval" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "opensSecurityWorkflowWhenSensitiveExportHasRedactionPlan" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java
+grep -q "generatesPackageOnlyForApprovedExportRequestAndReturnsTokenOnce" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportPackageServiceTest.java
+grep -q "downloadsPackageWithUnexpiredTokenAndVerifiesChecksum" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportPackageServiceTest.java
