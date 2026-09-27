@@ -67,6 +67,33 @@ class DocumentExportRequestServiceTest {
     }
 
     @Test
+    void blocksExportBeforeReviewWhenDocumentVersionIsUnsafe() {
+        UUID documentId = UUID.randomUUID();
+        DocumentRecord document = document(documentId, DocumentClassification.STAFF_OPERATIONAL);
+        DocumentExportRequestRepository requests = Mockito.mock(DocumentExportRequestRepository.class);
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DataGovernanceService governance = Mockito.mock(DataGovernanceService.class);
+        WorkflowTaskService workflow = Mockito.mock(WorkflowTaskService.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(governance.evaluateDocumentExport(documentId, true, false)).thenReturn(new PrivacyExportDecision(
+                false,
+                true,
+                false,
+                List.of("MALWARE_SCAN_FAILED", "DIGITAL_SIGNATURE_INVALID")));
+        when(requests.save(any(DocumentExportRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        DocumentExportRequestService service = new DocumentExportRequestService(requests, documents, governance, workflow, audit);
+
+        DocumentExportRequestResponse response = service.create(
+                new CreateDocumentExportRequest(documentId, "Provincial evidence inspection", true),
+                REQUESTER);
+
+        assertThat(response.status()).isEqualTo(ExportRequestStatus.BLOCKED.name());
+        assertThat(response.workflowTaskId()).isNull();
+        assertThat(response.blockers()).contains("MALWARE_SCAN_FAILED", "DIGITAL_SIGNATURE_INVALID");
+    }
+
+    @Test
     void opensSecurityWorkflowWhenSensitiveExportHasRedactionPlan() {
         UUID documentId = UUID.randomUUID();
         UUID workflowTaskId = UUID.randomUUID();

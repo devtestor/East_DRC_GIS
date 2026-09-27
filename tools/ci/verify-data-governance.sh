@@ -19,6 +19,7 @@ required_files=(
   "docs/architecture/phase-16-plan.md"
   "docs/architecture/phase-17-plan.md"
   "docs/architecture/phase-18-plan.md"
+  "docs/architecture/phase-19-plan.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -46,9 +47,18 @@ grep -q "export-requests" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "export-packages" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "Intake documentaire controle" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "referenceId" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "Synthese de gouvernance documentaire" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "MALWARE_SCAN_PENDING" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
+grep -q "MALWARE_SCAN_FAILED" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
+grep -q "DIGITAL_SIGNATURE_INVALID" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
+grep -q "DOCUMENT_VERSION_MISSING" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
 grep -q "Document evidence intake" docs/architecture/phase-18-plan.md
+grep -q "Document governance review hardening" docs/architecture/phase-19-plan.md
 grep -q "blocksAutomatedDispositionWhenDocumentHasActiveLegalHold" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "blocksSensitiveExportWithoutRedactionAndApproval" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
+grep -q "blocksExportWhenDocumentHasNoImmutableVersion" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
+grep -q "blocksExportWhenLatestDocumentVersionHasPendingMalwareScan" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "opensSecurityWorkflowWhenSensitiveExportHasRedactionPlan" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java
+grep -q "blocksExportBeforeReviewWhenDocumentVersionIsUnsafe" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java
 grep -q "generatesPackageOnlyForApprovedExportRequestAndReturnsTokenOnce" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportPackageServiceTest.java
 grep -q "downloadsPackageWithUnexpiredTokenAndVerifiesChecksum" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportPackageServiceTest.java

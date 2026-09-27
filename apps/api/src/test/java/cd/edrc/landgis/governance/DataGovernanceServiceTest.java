@@ -10,12 +10,17 @@ import static org.mockito.Mockito.when;
 import cd.edrc.landgis.audit.AuditClassification;
 import cd.edrc.landgis.audit.AuditService;
 import cd.edrc.landgis.common.AuthenticatedActor;
+import cd.edrc.landgis.documents.DigitalSignatureStatus;
 import cd.edrc.landgis.documents.DocumentClassification;
 import cd.edrc.landgis.documents.DocumentRecord;
 import cd.edrc.landgis.documents.DocumentRecordRepository;
+import cd.edrc.landgis.documents.DocumentVersionRecord;
+import cd.edrc.landgis.documents.DocumentVersionRecordRepository;
+import cd.edrc.landgis.documents.MalwareScanStatus;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -29,6 +34,7 @@ class DataGovernanceServiceTest {
         UUID documentId = UUID.randomUUID();
         DocumentRecord document = document(documentId, DocumentClassification.LEGAL_EVIDENCE, "LEGAL_RECORD", true);
         DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
         RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
         LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
         AuditService audit = Mockito.mock(AuditService.class);
@@ -41,7 +47,7 @@ class DataGovernanceServiceTest {
                 true,
                 true,
                 true)));
-        DataGovernanceService service = new DataGovernanceService(documents, policies, holds, audit, FUTURE_CLOCK);
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
 
         RetentionDispositionDecision decision = service.evaluateDocumentDisposition(documentId);
 
@@ -56,6 +62,7 @@ class DataGovernanceServiceTest {
         UUID documentId = UUID.randomUUID();
         DocumentRecord document = document(documentId, DocumentClassification.PUBLIC, "PUBLIC_RECORD", false);
         DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
         RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
         LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
         AuditService audit = Mockito.mock(AuditService.class);
@@ -70,7 +77,7 @@ class DataGovernanceServiceTest {
                 false,
                 false,
                 false)));
-        DataGovernanceService service = new DataGovernanceService(documents, policies, holds, audit, FUTURE_CLOCK);
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
 
         RetentionDispositionDecision decision = service.evaluateDocumentDisposition(documentId);
 
@@ -85,20 +92,89 @@ class DataGovernanceServiceTest {
         UUID documentId = UUID.randomUUID();
         DocumentRecord document = document(documentId, DocumentClassification.PROTECTED_PERSONAL, "IDENTITY_RECORD", false);
         DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
         RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
         LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
         AuditService audit = Mockito.mock(AuditService.class);
         when(documents.findById(documentId)).thenReturn(Optional.of(document));
         when(holds.existsByTargetTypeAndTargetIdAndStatus("document", documentId, LegalHoldStatus.ACTIVE))
                 .thenReturn(false);
-        DataGovernanceService service = new DataGovernanceService(documents, policies, holds, audit, FUTURE_CLOCK);
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
 
         PrivacyExportDecision decision = service.evaluateDocumentExport(documentId, false, false);
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.redactionRequired()).isTrue();
         assertThat(decision.approvalRequired()).isTrue();
-        assertThat(decision.blockers()).containsExactlyInAnyOrder("REDACTION_REQUIRED", "APPROVAL_REQUIRED");
+        assertThat(decision.blockers())
+                .containsExactlyInAnyOrder("DOCUMENT_VERSION_MISSING", "REDACTION_REQUIRED", "APPROVAL_REQUIRED");
+    }
+
+    @Test
+    void blocksExportWhenDocumentHasNoImmutableVersion() {
+        UUID documentId = UUID.randomUUID();
+        DocumentRecord document = document(documentId, DocumentClassification.PUBLIC, "PUBLIC_RECORD", false);
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
+        LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(holds.existsByTargetTypeAndTargetIdAndStatus("document", documentId, LegalHoldStatus.ACTIVE))
+                .thenReturn(false);
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of());
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
+
+        PrivacyExportDecision decision = service.evaluateDocumentExport(documentId, true, false);
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.blockers()).containsExactly("DOCUMENT_VERSION_MISSING");
+    }
+
+    @Test
+    void blocksExportWhenLatestDocumentVersionHasPendingMalwareScan() {
+        UUID documentId = UUID.randomUUID();
+        DocumentRecord document = document(documentId, DocumentClassification.STAFF_OPERATIONAL, "SERVICE_RECORD", false);
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
+        LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(holds.existsByTargetTypeAndTargetIdAndStatus("document", documentId, LegalHoldStatus.ACTIVE))
+                .thenReturn(false);
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of(
+                version(documentId, 1, MalwareScanStatus.PASSED, DigitalSignatureStatus.UNSIGNED),
+                version(documentId, 2, MalwareScanStatus.PENDING, DigitalSignatureStatus.UNKNOWN)));
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
+
+        PrivacyExportDecision decision = service.evaluateDocumentExport(documentId, true, true);
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.blockers()).containsExactly("MALWARE_SCAN_PENDING");
+    }
+
+    @Test
+    void blocksExportWhenLatestDocumentVersionFailedMalwareScanOrHasInvalidSignature() {
+        UUID documentId = UUID.randomUUID();
+        DocumentRecord document = document(documentId, DocumentClassification.LEGAL_EVIDENCE, "LEGAL_RECORD", false);
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
+        LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(holds.existsByTargetTypeAndTargetIdAndStatus("document", documentId, LegalHoldStatus.ACTIVE))
+                .thenReturn(false);
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of(
+                version(documentId, 1, MalwareScanStatus.PASSED, DigitalSignatureStatus.VALID),
+                version(documentId, 2, MalwareScanStatus.FAILED, DigitalSignatureStatus.INVALID)));
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
+
+        PrivacyExportDecision decision = service.evaluateDocumentExport(documentId, true, true);
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.blockers()).containsExactlyInAnyOrder("MALWARE_SCAN_FAILED", "DIGITAL_SIGNATURE_INVALID");
     }
 
     @Test
@@ -106,13 +182,14 @@ class DataGovernanceServiceTest {
         UUID documentId = UUID.randomUUID();
         DocumentRecord document = document(documentId, DocumentClassification.LEGAL_EVIDENCE, "LEGAL_RECORD", false);
         DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
         RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
         LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
         AuditService audit = Mockito.mock(AuditService.class);
         AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");
         when(documents.findById(documentId)).thenReturn(Optional.of(document));
         when(holds.save(any(LegalHold.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        DataGovernanceService service = new DataGovernanceService(documents, policies, holds, audit, FUTURE_CLOCK);
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
 
         LegalHold hold = service.placeDocumentHold(documentId, "court restriction", "fictional-court-2026-001", actor);
 
@@ -149,5 +226,25 @@ class DataGovernanceServiceTest {
                 UUID.randomUUID(),
                 "creator@example.test",
                 null);
+    }
+
+    private DocumentVersionRecord version(
+            UUID documentId,
+            int versionNumber,
+            MalwareScanStatus malwareScanStatus,
+            DigitalSignatureStatus digitalSignatureStatus) {
+        return new DocumentVersionRecord(
+                UUID.randomUUID(),
+                documentId,
+                versionNumber,
+                "sandbox/documents/version-" + versionNumber + ".pdf",
+                "version-" + versionNumber + ".pdf",
+                "application/pdf",
+                128,
+                "a".repeat(64),
+                malwareScanStatus,
+                digitalSignatureStatus,
+                UUID.randomUUID(),
+                "uploader@example.test");
     }
 }

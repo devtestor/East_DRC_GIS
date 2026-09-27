@@ -386,6 +386,7 @@ export function StaffConsoleClient() {
     () => workflowTasks.find((task) => task.id === workflowTaskId) ?? null,
     [workflowTaskId, workflowTasks]
   );
+  const documentGovernanceSummary = useMemo(() => summarizeDocumentGovernance(documents), [documents]);
   const selectedTaskRequiresEvidence = selectedWorkflowTask?.status === "CLAIMED" || selectedWorkflowTask?.status === "OPEN";
 
   async function callApi(path: string, options: { method?: string; payload?: unknown } = {}): Promise<ApiResult> {
@@ -1577,6 +1578,29 @@ export function StaffConsoleClient() {
           <Result result={documentDownloadResult} />
         </div>
 
+        <div className="readiness-grid" aria-label="Synthese de gouvernance documentaire">
+          <article className="readiness-check ready">
+            <strong>{documentGovernanceSummary.total}</strong>
+            <span>Documents charges</span>
+            <small>Metadonnees accessibles selon les politiques serveur.</small>
+          </article>
+          <article className={`readiness-check ${documentGovernanceSummary.pendingScan > 0 ? "attention" : "ready"}`}>
+            <strong>{documentGovernanceSummary.pendingScan}</strong>
+            <span>Scan malware en attente</span>
+            <small>Bloque tout export jusqu&apos;au resultat du scan.</small>
+          </article>
+          <article className={`readiness-check ${documentGovernanceSummary.failedScan > 0 ? "attention" : "ready"}`}>
+            <strong>{documentGovernanceSummary.failedScan}</strong>
+            <span>Scan malware echoue</span>
+            <small>Blocage dur: nouvelle version saine ou decision de quarantaine requise.</small>
+          </article>
+          <article className={`readiness-check ${documentGovernanceSummary.invalidSignature > 0 ? "attention" : "ready"}`}>
+            <strong>{documentGovernanceSummary.invalidSignature}</strong>
+            <span>Signature invalide</span>
+            <small>Blocage dur pour les exports gouvernes.</small>
+          </article>
+        </div>
+
         <form className="nested-form" onSubmit={appendDocumentVersion}>
           <h3>Ajouter une version immutable</h3>
           <p className="hint">
@@ -1654,6 +1678,13 @@ export function StaffConsoleClient() {
                 <small>
                   Owner: {item.ownerType}/{item.ownerId} · Document UUID: {item.id}
                 </small>
+                {documentExportBlockers(item).length > 0 ? (
+                  <small className="warning-text">
+                    Export bloque: {documentExportBlockers(item).join(", ")}
+                  </small>
+                ) : (
+                  <small>Export documentaire: aucun bloqueur de scan/signature sur la derniere version.</small>
+                )}
                 {item.versions.map((version) => (
                   <small key={version.id}>
                     v{version.versionNumber}: {version.originalFilename} · {version.malwareScanStatus} ·{" "}
@@ -2792,6 +2823,51 @@ function parseFirstWktRing(wkt: string): Array<[number, number]> {
     .map((coordinate) => coordinate.trim().split(/\s+/).map(Number))
     .filter((coordinate) => coordinate.length >= 2 && Number.isFinite(coordinate[0]) && Number.isFinite(coordinate[1]))
     .map((coordinate) => [coordinate[0], coordinate[1]]);
+}
+
+function latestDocumentVersion(document: DocumentResponse): DocumentVersionResponse | null {
+  if (document.versions.length === 0) {
+    return null;
+  }
+
+  return document.versions.reduce((latest, candidate) =>
+    candidate.versionNumber > latest.versionNumber ? candidate : latest,
+  );
+}
+
+function documentExportBlockers(document: DocumentResponse): string[] {
+  const version = latestDocumentVersion(document);
+  if (!version) {
+    return ["DOCUMENT_VERSION_MISSING"];
+  }
+
+  const blockers: string[] = [];
+  if (version.malwareScanStatus === "PENDING") {
+    blockers.push("MALWARE_SCAN_PENDING");
+  }
+  if (version.malwareScanStatus === "FAILED") {
+    blockers.push("MALWARE_SCAN_FAILED");
+  }
+  if (version.digitalSignatureStatus === "INVALID") {
+    blockers.push("DIGITAL_SIGNATURE_INVALID");
+  }
+
+  return blockers;
+}
+
+function summarizeDocumentGovernance(documents: DocumentResponse[]) {
+  return documents.reduce(
+    (summary, document) => {
+      const blockers = documentExportBlockers(document);
+      return {
+        total: summary.total + 1,
+        pendingScan: summary.pendingScan + (blockers.includes("MALWARE_SCAN_PENDING") ? 1 : 0),
+        failedScan: summary.failedScan + (blockers.includes("MALWARE_SCAN_FAILED") ? 1 : 0),
+        invalidSignature: summary.invalidSignature + (blockers.includes("DIGITAL_SIGNATURE_INVALID") ? 1 : 0),
+      };
+    },
+    { total: 0, pendingScan: 0, failedScan: 0, invalidSignature: 0 },
+  );
 }
 
 function formatBody(text: string) {

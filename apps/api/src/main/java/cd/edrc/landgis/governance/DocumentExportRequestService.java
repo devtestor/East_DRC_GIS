@@ -44,8 +44,8 @@ public class DocumentExportRequestService {
                 request.documentId(),
                 request.redactionPlanned(),
                 false);
-        boolean blockedBeforeReview = initialDecision.blockers().contains("ACTIVE_LEGAL_HOLD")
-                || initialDecision.blockers().contains("REDACTION_REQUIRED");
+        boolean blockedBeforeReview = initialDecision.blockers().stream()
+                .anyMatch(blocker -> !"APPROVAL_REQUIRED".equals(blocker));
         ExportRequestStatus status = blockedBeforeReview
                 ? ExportRequestStatus.BLOCKED
                 : ExportRequestStatus.PENDING_REVIEW;

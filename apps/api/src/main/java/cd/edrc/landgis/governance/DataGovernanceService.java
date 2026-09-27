@@ -3,13 +3,18 @@ package cd.edrc.landgis.governance;
 import cd.edrc.landgis.audit.AuditClassification;
 import cd.edrc.landgis.audit.AuditService;
 import cd.edrc.landgis.common.AuthenticatedActor;
+import cd.edrc.landgis.documents.DigitalSignatureStatus;
 import cd.edrc.landgis.documents.DocumentClassification;
 import cd.edrc.landgis.documents.DocumentNotFoundException;
 import cd.edrc.landgis.documents.DocumentRecord;
 import cd.edrc.landgis.documents.DocumentRecordRepository;
+import cd.edrc.landgis.documents.DocumentVersionRecord;
+import cd.edrc.landgis.documents.DocumentVersionRecordRepository;
+import cd.edrc.landgis.documents.MalwareScanStatus;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,6 +32,7 @@ public class DataGovernanceService {
             DocumentClassification.SECURITY);
 
     private final DocumentRecordRepository documents;
+    private final DocumentVersionRecordRepository documentVersions;
     private final RetentionPolicyRepository retentionPolicies;
     private final LegalHoldRepository legalHolds;
     private final AuditService auditService;
@@ -35,19 +41,22 @@ public class DataGovernanceService {
     @Autowired
     public DataGovernanceService(
             DocumentRecordRepository documents,
+            DocumentVersionRecordRepository documentVersions,
             RetentionPolicyRepository retentionPolicies,
             LegalHoldRepository legalHolds,
             AuditService auditService) {
-        this(documents, retentionPolicies, legalHolds, auditService, Clock.systemUTC());
+        this(documents, documentVersions, retentionPolicies, legalHolds, auditService, Clock.systemUTC());
     }
 
     DataGovernanceService(
             DocumentRecordRepository documents,
+            DocumentVersionRecordRepository documentVersions,
             RetentionPolicyRepository retentionPolicies,
             LegalHoldRepository legalHolds,
             AuditService auditService,
             Clock clock) {
         this.documents = documents;
+        this.documentVersions = documentVersions;
         this.retentionPolicies = retentionPolicies;
         this.legalHolds = legalHolds;
         this.auditService = auditService;
@@ -139,6 +148,10 @@ public class DataGovernanceService {
         if (activeHold) {
             blockers.add("ACTIVE_LEGAL_HOLD");
         }
+        latestVersion(document.id())
+                .ifPresentOrElse(
+                        version -> addVersionExportBlockers(version, blockers),
+                        () -> blockers.add("DOCUMENT_VERSION_MISSING"));
         if (sensitive && !redactionPlanned) {
             blockers.add("REDACTION_REQUIRED");
         }
@@ -148,6 +161,23 @@ public class DataGovernanceService {
         boolean redactionRequired = sensitive || document.classification() == DocumentClassification.STAFF_OPERATIONAL;
         boolean approvalRequired = sensitive || activeHold;
         return new PrivacyExportDecision(blockers.isEmpty(), redactionRequired, approvalRequired, List.copyOf(blockers));
+    }
+
+    private java.util.Optional<DocumentVersionRecord> latestVersion(UUID documentId) {
+        return documentVersions.findByDocumentIdOrderByVersionNumberAsc(documentId).stream()
+                .max(Comparator.comparingInt(DocumentVersionRecord::versionNumber));
+    }
+
+    private void addVersionExportBlockers(DocumentVersionRecord version, List<String> blockers) {
+        if (version.malwareScanStatus() == MalwareScanStatus.PENDING) {
+            blockers.add("MALWARE_SCAN_PENDING");
+        }
+        if (version.malwareScanStatus() == MalwareScanStatus.FAILED) {
+            blockers.add("MALWARE_SCAN_FAILED");
+        }
+        if (version.digitalSignatureStatus() == DigitalSignatureStatus.INVALID) {
+            blockers.add("DIGITAL_SIGNATURE_INVALID");
+        }
     }
 
     private DocumentRecord document(UUID documentId) {
