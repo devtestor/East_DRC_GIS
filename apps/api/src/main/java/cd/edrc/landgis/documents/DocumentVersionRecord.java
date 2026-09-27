@@ -135,4 +135,11 @@ public class DocumentVersionRecord {
     public OffsetDateTime uploadedAt() {
         return uploadedAt;
     }
+
+    public void updateSafetyStatus(
+            MalwareScanStatus malwareScanStatus,
+            DigitalSignatureStatus digitalSignatureStatus) {
+        this.malwareScanStatus = malwareScanStatus;
+        this.digitalSignatureStatus = digitalSignatureStatus;
+    }
 }

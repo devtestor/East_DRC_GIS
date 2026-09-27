@@ -380,6 +380,7 @@ export function StaffConsoleClient() {
   const [documentOwnerId, setDocumentOwnerId] = useState("");
   const [documentResult, setDocumentResult] = useState<ApiResult | null>(null);
   const [documentVersionResult, setDocumentVersionResult] = useState<ApiResult | null>(null);
+  const [documentSafetyResult, setDocumentSafetyResult] = useState<ApiResult | null>(null);
   const [documentDownloadResult, setDocumentDownloadResult] = useState<ApiResult | null>(null);
   const authHeader = useMemo(() => `Basic ${btoa(`${email}:${password}`)}`, [email, password]);
   const selectedWorkflowTask = useMemo(
@@ -387,6 +388,11 @@ export function StaffConsoleClient() {
     [workflowTaskId, workflowTasks]
   );
   const documentGovernanceSummary = useMemo(() => summarizeDocumentGovernance(documents), [documents]);
+  const selectedDocument = useMemo(
+    () => documents.find((document) => document.id === selectedDocumentId) ?? null,
+    [documents, selectedDocumentId]
+  );
+  const selectedDocumentLatestVersion = selectedDocument ? latestDocumentVersion(selectedDocument) : null;
   const selectedTaskRequiresEvidence = selectedWorkflowTask?.status === "CLAIMED" || selectedWorkflowTask?.status === "OPEN";
 
   async function callApi(path: string, options: { method?: string; payload?: unknown } = {}): Promise<ApiResult> {
@@ -640,6 +646,34 @@ export function StaffConsoleClient() {
       }
     });
     setDocumentVersionResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentResponse;
+      setSelectedDocumentId(parsed.id);
+      setDocuments((current) => [parsed, ...current.filter((item) => item.id !== parsed.id)]);
+    }
+  }
+
+  async function updateDocumentVersionSafetyStatus(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetDocumentId = String(data.get("documentId") ?? "").trim();
+    const targetVersionId = String(data.get("versionId") ?? "").trim();
+    if (!targetDocumentId || !targetVersionId) {
+      setDocumentSafetyResult({ ok: false, status: 400, body: "UUID document et version requis." });
+      return;
+    }
+    const result = await callApi(
+      `/api/v1/documents/${targetDocumentId}/versions/${targetVersionId}/safety-status`,
+      {
+        method: "POST",
+        payload: {
+          malwareScanStatus: data.get("malwareScanStatus"),
+          digitalSignatureStatus: data.get("digitalSignatureStatus"),
+          reason: data.get("reason")
+        }
+      }
+    );
+    setDocumentSafetyResult(result);
     if (result.ok) {
       const parsed = JSON.parse(result.body) as DocumentResponse;
       setSelectedDocumentId(parsed.id);
@@ -1654,6 +1688,59 @@ export function StaffConsoleClient() {
           </div>
           <button type="submit">Ajouter version</button>
           <Result result={documentVersionResult} />
+        </form>
+
+        <form
+          className="nested-form"
+          key={`${selectedDocumentId}-${selectedDocumentLatestVersion?.id ?? "no-version"}`}
+          onSubmit={updateDocumentVersionSafetyStatus}
+        >
+          <h3>Revue scan/signature de version</h3>
+          <p className="hint">
+            Met a jour seulement les statuts de securite de la version selectionnee. Le fichier, le checksum et les
+            versions precedentes restent immuables; l&apos;API enregistre un evenement d&apos;audit.
+          </p>
+          <div className="form-grid">
+            <label>
+              Document UUID
+              <input name="documentId" defaultValue={selectedDocumentId} placeholder="UUID document" />
+            </label>
+            <label>
+              Version UUID
+              <input
+                name="versionId"
+                defaultValue={selectedDocumentLatestVersion?.id ?? ""}
+                placeholder="UUID version"
+              />
+            </label>
+            <label>
+              Scan malware
+              <select name="malwareScanStatus" defaultValue={selectedDocumentLatestVersion?.malwareScanStatus ?? "PASSED"}>
+                <option value="PENDING">En attente</option>
+                <option value="PASSED">Valide</option>
+                <option value="FAILED">Echec</option>
+                <option value="NOT_REQUIRED">Non requis</option>
+              </select>
+            </label>
+            <label>
+              Signature numerique
+              <select
+                name="digitalSignatureStatus"
+                defaultValue={selectedDocumentLatestVersion?.digitalSignatureStatus ?? "VALID"}
+              >
+                <option value="UNSIGNED">Non signe</option>
+                <option value="VALID">Valide</option>
+                <option value="INVALID">Invalide</option>
+                <option value="UNKNOWN">Inconnue</option>
+              </select>
+            </label>
+            <label>
+              Motif de revue
+              <input name="reason" defaultValue="Scan sandbox termine et verification documentaire effectuee" />
+            </label>
+          </div>
+          <button type="submit">Mettre a jour les statuts</button>
+          <Result result={documentSafetyResult} />
         </form>
 
         {documents.length === 0 ? (

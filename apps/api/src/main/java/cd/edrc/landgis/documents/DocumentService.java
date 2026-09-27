@@ -3,6 +3,7 @@ package cd.edrc.landgis.documents;
 import cd.edrc.landgis.audit.AuditClassification;
 import cd.edrc.landgis.audit.AuditService;
 import cd.edrc.landgis.common.AuthenticatedActor;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -157,6 +158,47 @@ public class DocumentService {
         return DocumentResponse.from(document, versions.findByDocumentIdOrderByVersionNumberAsc(documentId));
     }
 
+    @Transactional
+    public DocumentResponse updateVersionSafetyStatus(
+            UUID documentId,
+            UUID versionId,
+            UpdateDocumentVersionSafetyStatusRequest request,
+            AuthenticatedActor actor) {
+        DocumentRecord document = documents.findById(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+        if (!access.canAppendVersion(document, actor)) {
+            auditService.record(
+                    "document.version-safety-update-denied",
+                    "document-version",
+                    versionId.toString(),
+                    AuditClassification.SECURITY,
+                    actor.userId(),
+                    document.custodianOrganizationId(),
+                    auditEvidence(document, "safety-update-denied"));
+            throw new DocumentAccessDeniedException(documentId);
+        }
+        DocumentVersionRecord version = versions.findByIdAndDocumentId(versionId, documentId)
+                .orElseThrow(() -> new DocumentVersionNotFoundException(documentId, versionId));
+        MalwareScanStatus previousMalwareScanStatus = version.malwareScanStatus();
+        DigitalSignatureStatus previousDigitalSignatureStatus = version.digitalSignatureStatus();
+        version.updateSafetyStatus(request.malwareScanStatus(), request.digitalSignatureStatus());
+        versions.save(version);
+        auditService.record(
+                "document.version-safety-status-updated",
+                "document-version",
+                version.id().toString(),
+                auditClassificationFor(document),
+                actor.userId(),
+                document.custodianOrganizationId(),
+                safetyAuditEvidence(
+                        document,
+                        version,
+                        previousMalwareScanStatus,
+                        previousDigitalSignatureStatus,
+                        request));
+        return DocumentResponse.from(document, versions.findByDocumentIdOrderByVersionNumberAsc(documentId));
+    }
+
     @Transactional(readOnly = true)
     public List<DocumentResponse> findByOwner(String ownerType, UUID ownerId, AuthenticatedActor actor) {
         auditService.record(
@@ -201,6 +243,24 @@ public class DocumentService {
                 "accessPolicy", document.accessPolicy(),
                 "custodianScoped", document.custodianOrganizationId() != null,
                 "operation", operation);
+    }
+
+    private Map<String, Object> safetyAuditEvidence(
+            DocumentRecord document,
+            DocumentVersionRecord version,
+            MalwareScanStatus previousMalwareScanStatus,
+            DigitalSignatureStatus previousDigitalSignatureStatus,
+            UpdateDocumentVersionSafetyStatusRequest request) {
+        Map<String, Object> evidence = new HashMap<>(auditEvidence(document, "safety-status-update"));
+        evidence.put("documentId", document.id().toString());
+        evidence.put("documentVersionId", version.id().toString());
+        evidence.put("versionNumber", version.versionNumber());
+        evidence.put("previousMalwareScanStatus", previousMalwareScanStatus.name());
+        evidence.put("newMalwareScanStatus", request.malwareScanStatus().name());
+        evidence.put("previousDigitalSignatureStatus", previousDigitalSignatureStatus.name());
+        evidence.put("newDigitalSignatureStatus", request.digitalSignatureStatus().name());
+        evidence.put("reason", request.reason());
+        return evidence;
     }
 
     private String normalizeOptionalUppercase(String value) {

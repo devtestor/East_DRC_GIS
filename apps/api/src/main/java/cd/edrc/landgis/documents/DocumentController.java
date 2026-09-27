@@ -62,6 +62,19 @@ class DocumentController {
                 actors.requireActor(principal == null ? null : principal.getName()));
     }
 
+    @PostMapping("/{documentId}/versions/{versionId}/safety-status")
+    DocumentResponse updateVersionSafetyStatus(
+            @PathVariable UUID documentId,
+            @PathVariable UUID versionId,
+            @Valid @RequestBody UpdateDocumentVersionSafetyStatusRequest request,
+            Principal principal) {
+        return documents.updateVersionSafetyStatus(
+                documentId,
+                versionId,
+                request,
+                actors.requireActor(principal == null ? null : principal.getName()));
+    }
+
     @GetMapping
     List<DocumentResponse> findByOwner(@RequestParam String ownerType, @RequestParam UUID ownerId, Principal principal) {
         return documents.findByOwner(

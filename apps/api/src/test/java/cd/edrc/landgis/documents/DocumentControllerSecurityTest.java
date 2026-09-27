@@ -130,4 +130,47 @@ class DocumentControllerSecurityTest {
                                 """))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @WithMockUser(roles = "STAFF", username = "officer@example.test")
+    void allowsStaffDocumentVersionSafetyStatusUpdate() throws Exception {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");
+        when(actorResolver.requireActor("officer@example.test")).thenReturn(actor);
+        when(documentService.updateVersionSafetyStatus(
+                        any(UUID.class),
+                        any(UUID.class),
+                        any(UpdateDocumentVersionSafetyStatusRequest.class),
+                        any(AuthenticatedActor.class)))
+                .thenReturn(new DocumentResponse(
+                        documentId,
+                        "SURVEY_PLAN",
+                        "parcel",
+                        ownerId,
+                        "Fictional survey plan",
+                        "LEGAL_EVIDENCE",
+                        "LEGAL_RECORD",
+                        "workflow-task-and-authorized-staff",
+                        null,
+                        null,
+                        false,
+                        actor.userId(),
+                        actor.username(),
+                        java.time.OffsetDateTime.now(),
+                        null,
+                        List.of()));
+
+        mvc.perform(post("/api/v1/documents/{documentId}/versions/{versionId}/safety-status", documentId, versionId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "malwareScanStatus": "PASSED",
+                                  "digitalSignatureStatus": "VALID",
+                                  "reason": "Sandbox malware scan passed and signature verified"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
 }

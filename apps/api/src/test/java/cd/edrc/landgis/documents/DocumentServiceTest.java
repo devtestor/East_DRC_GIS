@@ -240,6 +240,119 @@ class DocumentServiceTest {
     }
 
     @Test
+    void updatesDocumentVersionSafetyStatusWithAuditTrail() {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");
+        DocumentRecord document = new DocumentRecord(
+                documentId,
+                "SURVEY_PLAN",
+                "parcel",
+                UUID.randomUUID(),
+                "Fictional survey plan",
+                DocumentClassification.LEGAL_EVIDENCE,
+                "LEGAL_RECORD",
+                "workflow-task-and-authorized-staff",
+                null,
+                null,
+                false,
+                actor.userId(),
+                actor.username(),
+                null);
+        DocumentVersionRecord version = new DocumentVersionRecord(
+                versionId,
+                documentId,
+                1,
+                "documents/fictional/survey-plan-v1.pdf",
+                "survey-plan-v1.pdf",
+                "application/pdf",
+                128L,
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                MalwareScanStatus.PENDING,
+                DigitalSignatureStatus.UNKNOWN,
+                actor.userId(),
+                actor.username());
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        DocumentAccessAuthorizer access = Mockito.mock(DocumentAccessAuthorizer.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(access.canAppendVersion(document, actor)).thenReturn(true);
+        when(versions.findByIdAndDocumentId(versionId, documentId)).thenReturn(Optional.of(version));
+        when(versions.save(any(DocumentVersionRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of(version));
+        DocumentService service = new DocumentService(documents, versions, access, audit);
+
+        DocumentResponse response = service.updateVersionSafetyStatus(
+                documentId,
+                versionId,
+                new UpdateDocumentVersionSafetyStatusRequest(
+                        MalwareScanStatus.PASSED,
+                        DigitalSignatureStatus.VALID,
+                        "Sandbox malware scan passed and signature verified"),
+                actor);
+
+        assertThat(response.versions()).hasSize(1);
+        assertThat(response.versions().get(0).malwareScanStatus()).isEqualTo("PASSED");
+        assertThat(response.versions().get(0).digitalSignatureStatus()).isEqualTo("VALID");
+        verify(audit).record(
+                eq("document.version-safety-status-updated"),
+                eq("document-version"),
+                eq(versionId.toString()),
+                eq(AuditClassification.LEGAL_EVIDENCE),
+                eq(actor.userId()),
+                isNull(),
+                anyMap());
+    }
+
+    @Test
+    void deniesDocumentVersionSafetyStatusUpdateWhenActorCannotAppend() {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");
+        DocumentRecord document = new DocumentRecord(
+                documentId,
+                "SURVEY_PLAN",
+                "parcel",
+                UUID.randomUUID(),
+                "Fictional survey plan",
+                DocumentClassification.LEGAL_EVIDENCE,
+                "LEGAL_RECORD",
+                "workflow-task-and-authorized-staff",
+                null,
+                null,
+                false,
+                UUID.randomUUID(),
+                "creator@example.test",
+                null);
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        DocumentAccessAuthorizer access = Mockito.mock(DocumentAccessAuthorizer.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(access.canAppendVersion(document, actor)).thenReturn(false);
+        DocumentService service = new DocumentService(documents, versions, access, audit);
+
+        assertThatThrownBy(() -> service.updateVersionSafetyStatus(
+                        documentId,
+                        versionId,
+                        new UpdateDocumentVersionSafetyStatusRequest(
+                                MalwareScanStatus.FAILED,
+                                DigitalSignatureStatus.INVALID,
+                                "Sandbox scan failed"),
+                        actor))
+                .isInstanceOf(DocumentAccessDeniedException.class);
+        verify(audit).record(
+                eq("document.version-safety-update-denied"),
+                eq("document-version"),
+                eq(versionId.toString()),
+                eq(AuditClassification.SECURITY),
+                eq(actor.userId()),
+                isNull(),
+                anyMap());
+    }
+
+    @Test
     void auditsSuccessfulDocumentRead() {
         UUID documentId = UUID.randomUUID();
         AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");

@@ -17,6 +17,14 @@ public class DocumentProblemHandler {
         return problem;
     }
 
+    @ExceptionHandler(DocumentVersionNotFoundException.class)
+    ProblemDetail handleVersionNotFound(DocumentVersionNotFoundException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setType(URI.create("https://edrc-land-gis.local/problems/document-version-not-found"));
+        problem.setTitle("Document version not found");
+        return problem;
+    }
+
     @ExceptionHandler(DocumentAccessDeniedException.class)
     ProblemDetail handleAccessDenied(DocumentAccessDeniedException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());

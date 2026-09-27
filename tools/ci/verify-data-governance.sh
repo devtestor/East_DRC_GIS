@@ -20,6 +20,7 @@ required_files=(
   "docs/architecture/phase-17-plan.md"
   "docs/architecture/phase-18-plan.md"
   "docs/architecture/phase-19-plan.md"
+  "docs/architecture/phase-20-plan.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -48,16 +49,23 @@ grep -q "export-packages" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "Intake documentaire controle" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "referenceId" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "Synthese de gouvernance documentaire" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "Revue scan/signature de version" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "safety-status" apps/api/src/main/java/cd/edrc/landgis/documents/DocumentController.java
+grep -q "document.version-safety-status-updated" apps/api/src/main/java/cd/edrc/landgis/documents/DocumentService.java
+grep -q "document.version-safety-update-denied" apps/api/src/main/java/cd/edrc/landgis/documents/DocumentService.java
 grep -q "MALWARE_SCAN_PENDING" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
 grep -q "MALWARE_SCAN_FAILED" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
 grep -q "DIGITAL_SIGNATURE_INVALID" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
 grep -q "DOCUMENT_VERSION_MISSING" apps/api/src/main/java/cd/edrc/landgis/governance/DataGovernanceService.java
 grep -q "Document evidence intake" docs/architecture/phase-18-plan.md
 grep -q "Document governance review hardening" docs/architecture/phase-19-plan.md
+grep -q "Document scan and signature lifecycle review" docs/architecture/phase-20-plan.md
 grep -q "blocksAutomatedDispositionWhenDocumentHasActiveLegalHold" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "blocksSensitiveExportWithoutRedactionAndApproval" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "blocksExportWhenDocumentHasNoImmutableVersion" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "blocksExportWhenLatestDocumentVersionHasPendingMalwareScan" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
+grep -q "updatesDocumentVersionSafetyStatusWithAuditTrail" apps/api/src/test/java/cd/edrc/landgis/documents/DocumentServiceTest.java
+grep -q "allowsStaffDocumentVersionSafetyStatusUpdate" apps/api/src/test/java/cd/edrc/landgis/documents/DocumentControllerSecurityTest.java
 grep -q "opensSecurityWorkflowWhenSensitiveExportHasRedactionPlan" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java
 grep -q "blocksExportBeforeReviewWhenDocumentVersionIsUnsafe" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java
 grep -q "generatesPackageOnlyForApprovedExportRequestAndReturnsTokenOnce" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportPackageServiceTest.java
