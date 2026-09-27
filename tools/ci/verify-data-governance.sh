@@ -18,6 +18,7 @@ required_files=(
   "docs/architecture/phase-15-plan.md"
   "docs/architecture/phase-16-plan.md"
   "docs/architecture/phase-17-plan.md"
+  "docs/architecture/phase-18-plan.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -43,6 +44,9 @@ grep -q "document-export-package-downloaded" apps/api/src/main/java/cd/edrc/land
 grep -q "DOCUMENT_EXPORT_REVIEW" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "export-requests" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "export-packages" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "Intake documentaire controle" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "referenceId" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "Document evidence intake" docs/architecture/phase-18-plan.md
 grep -q "blocksAutomatedDispositionWhenDocumentHasActiveLegalHold" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "blocksSensitiveExportWithoutRedactionAndApproval" apps/api/src/test/java/cd/edrc/landgis/governance/DataGovernanceServiceTest.java
 grep -q "opensSecurityWorkflowWhenSensitiveExportHasRedactionPlan" apps/api/src/test/java/cd/edrc/landgis/governance/DocumentExportRequestServiceTest.java

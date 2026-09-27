@@ -283,6 +283,41 @@ type DocumentExportPackageResponse = {
   deliveryToken: string | null;
 };
 
+type DocumentVersionResponse = {
+  id: string;
+  documentId: string;
+  versionNumber: number;
+  objectStorageKey: string;
+  originalFilename: string;
+  mediaType: string;
+  sizeBytes: number;
+  checksumSha256: string;
+  malwareScanStatus: string;
+  digitalSignatureStatus: string;
+  uploadedByUserId: string;
+  uploadedBy: string;
+  uploadedAt: string;
+};
+
+type DocumentResponse = {
+  id: string;
+  documentType: string;
+  ownerType: string;
+  ownerId: string;
+  title: string;
+  classification: string;
+  retentionCategory: string;
+  accessPolicy: string;
+  custodianOrganizationId: string | null;
+  custodianRoleCode: string | null;
+  legalHold: boolean;
+  createdByUserId: string;
+  createdBy: string;
+  createdAt: string;
+  effectiveAt: string | null;
+  versions: DocumentVersionResponse[];
+};
+
 const defaultApiUrl = "http://localhost:8080";
 
 export function StaffConsoleClient() {
@@ -339,6 +374,13 @@ export function StaffConsoleClient() {
   const [exportReviewResult, setExportReviewResult] = useState<ApiResult | null>(null);
   const [exportPackageResult, setExportPackageResult] = useState<ApiResult | null>(null);
   const [exportDownloadResult, setExportDownloadResult] = useState<ApiResult | null>(null);
+  const [documents, setDocuments] = useState<DocumentResponse[]>([]);
+  const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [documentOwnerType, setDocumentOwnerType] = useState("parcel");
+  const [documentOwnerId, setDocumentOwnerId] = useState("");
+  const [documentResult, setDocumentResult] = useState<ApiResult | null>(null);
+  const [documentVersionResult, setDocumentVersionResult] = useState<ApiResult | null>(null);
+  const [documentDownloadResult, setDocumentDownloadResult] = useState<ApiResult | null>(null);
   const authHeader = useMemo(() => `Basic ${btoa(`${email}:${password}`)}`, [email, password]);
   const selectedWorkflowTask = useMemo(
     () => workflowTasks.find((task) => task.id === workflowTaskId) ?? null,
@@ -364,7 +406,11 @@ export function StaffConsoleClient() {
     };
   }
 
-  async function downloadApi(path: string): Promise<{ result: ApiResult; blob?: Blob; filename?: string }> {
+  async function downloadApi(
+    path: string,
+    fallbackFilename = "governed-export-package.txt",
+    successLabel = "Package telecharge"
+  ): Promise<{ result: ApiResult; blob?: Blob; filename?: string }> {
     const response = await fetch(`${apiUrl}${path}`, {
       headers: {
         Authorization: authHeader,
@@ -381,12 +427,12 @@ export function StaffConsoleClient() {
       };
     }
     const disposition = response.headers.get("Content-Disposition") ?? "";
-    const filename = disposition.match(/filename="?([^";]+)"?/)?.[1] ?? "governed-export-package.txt";
+    const filename = disposition.match(/filename="?([^";]+)"?/)?.[1] ?? fallbackFilename;
     return {
       result: {
         ok: true,
         status: response.status,
-        body: `Package telecharge: ${filename}`
+        body: `${successLabel}: ${filename}`
       },
       blob: await response.blob(),
       filename
@@ -506,6 +552,119 @@ export function StaffConsoleClient() {
       link.click();
       URL.revokeObjectURL(url);
       await loadDocumentExportPackage();
+    }
+  }
+
+  async function createDocumentEvidence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const ownerId = String(data.get("ownerId") ?? "").trim();
+    const custodianOrganizationId = String(data.get("custodianOrganizationId") ?? "").trim();
+    const effectiveAt = String(data.get("effectiveAt") ?? "").trim();
+    const result = await callApi("/api/v1/documents", {
+      method: "POST",
+      payload: {
+        documentType: data.get("documentType"),
+        ownerType: data.get("ownerType"),
+        ownerId,
+        title: data.get("title"),
+        classification: data.get("classification"),
+        retentionCategory: data.get("retentionCategory"),
+        accessPolicy: data.get("accessPolicy"),
+        custodianOrganizationId: custodianOrganizationId || null,
+        custodianRoleCode: data.get("custodianRoleCode") || null,
+        legalHold: data.get("legalHold") === "on",
+        effectiveAt: effectiveAt ? new Date(effectiveAt).toISOString() : null,
+        objectStorageKey: data.get("objectStorageKey"),
+        originalFilename: data.get("originalFilename"),
+        mediaType: data.get("mediaType"),
+        sizeBytes: Number(data.get("sizeBytes") ?? 0),
+        checksumSha256: data.get("checksumSha256"),
+        malwareScanStatus: data.get("malwareScanStatus"),
+        digitalSignatureStatus: data.get("digitalSignatureStatus")
+      }
+    });
+    setDocumentResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentResponse;
+      setSelectedDocumentId(parsed.id);
+      setDocumentOwnerType(parsed.ownerType);
+      setDocumentOwnerId(parsed.ownerId);
+      setDocuments((current) => [parsed, ...current.filter((item) => item.id !== parsed.id)]);
+    }
+  }
+
+  async function loadDocumentMetadata() {
+    const targetDocumentId = selectedDocumentId.trim();
+    if (!targetDocumentId) return;
+    const result = await callApi(`/api/v1/documents/${targetDocumentId}`);
+    setDocumentResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentResponse;
+      setDocuments((current) => [parsed, ...current.filter((item) => item.id !== parsed.id)]);
+      setDocumentOwnerType(parsed.ownerType);
+      setDocumentOwnerId(parsed.ownerId);
+    }
+  }
+
+  async function loadDocumentsByOwner() {
+    const ownerType = documentOwnerType.trim();
+    const ownerId = documentOwnerId.trim();
+    if (!ownerType || !ownerId) return;
+    const result = await callApi(
+      `/api/v1/documents?ownerType=${encodeURIComponent(ownerType)}&ownerId=${encodeURIComponent(ownerId)}`
+    );
+    setDocumentResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentResponse[];
+      setDocuments(parsed);
+      if (!selectedDocumentId && parsed.length > 0) setSelectedDocumentId(parsed[0].id);
+    }
+  }
+
+  async function appendDocumentVersion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetDocumentId = String(data.get("documentId") ?? "").trim();
+    const result = await callApi(`/api/v1/documents/${targetDocumentId}/versions`, {
+      method: "POST",
+      payload: {
+        objectStorageKey: data.get("objectStorageKey"),
+        originalFilename: data.get("originalFilename"),
+        mediaType: data.get("mediaType"),
+        sizeBytes: Number(data.get("sizeBytes") ?? 0),
+        checksumSha256: data.get("checksumSha256"),
+        malwareScanStatus: data.get("malwareScanStatus"),
+        digitalSignatureStatus: data.get("digitalSignatureStatus")
+      }
+    });
+    setDocumentVersionResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentResponse;
+      setSelectedDocumentId(parsed.id);
+      setDocuments((current) => [parsed, ...current.filter((item) => item.id !== parsed.id)]);
+    }
+  }
+
+  async function downloadDocumentContent() {
+    const targetDocumentId = selectedDocumentId.trim();
+    if (!targetDocumentId) {
+      setDocumentDownloadResult({ ok: false, status: 400, body: "UUID document requis." });
+      return;
+    }
+    const { result, blob, filename } = await downloadApi(
+      `/api/v1/documents/${targetDocumentId}/content`,
+      "document-sandbox.txt",
+      "Contenu documentaire telecharge"
+    );
+    setDocumentDownloadResult(result);
+    if (result.ok && blob) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename ?? "document-sandbox.txt";
+      link.click();
+      URL.revokeObjectURL(url);
     }
   }
 
@@ -705,6 +864,7 @@ export function StaffConsoleClient() {
     if (result.ok) {
       const parsed = JSON.parse(result.body) as ParcelResponse;
       setParcelId(parsed.id);
+      if (!documentOwnerId) setDocumentOwnerId(parsed.id);
     }
   }
 
@@ -1058,11 +1218,13 @@ export function StaffConsoleClient() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const targetTaskId = String(data.get("workflowTaskId") ?? "").trim();
+    const referenceId = String(data.get("referenceId") ?? "").trim();
     const result = await callApi(`/api/v1/workflow/tasks/${targetTaskId}/evidence`, {
       method: "POST",
       payload: {
         evidenceType: data.get("evidenceType"),
         referenceType: data.get("referenceType"),
+        referenceId: referenceId || null,
         externalReference: data.get("externalReference"),
         summary: data.get("summary")
       }
@@ -1241,6 +1403,266 @@ export function StaffConsoleClient() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="panel" aria-labelledby="document-intake-heading">
+        <div className="section-row">
+          <div>
+            <p className="eyebrow">Documents et preuves</p>
+            <h2 id="document-intake-heading">Intake documentaire controle</h2>
+            <p className="hint">
+              Ce flux cree des metadonnees et des versions de preuve. Les fichiers volumineux restent references par
+              cle d&apos;objet chiffre; le contenu binaire n&apos;est pas stocke dans la base transactionnelle.
+            </p>
+          </div>
+          <button type="button" onClick={loadDocumentMetadata}>
+            Actualiser document
+          </button>
+        </div>
+
+        <form className="nested-form" onSubmit={createDocumentEvidence}>
+          <h3>Creer une preuve documentaire</h3>
+          <div className="form-grid">
+            <label>
+              Type document
+              <select name="documentType" defaultValue="SURVEY_PLAN">
+                <option value="IDENTITY_EVIDENCE">Preuve identite</option>
+                <option value="SURVEY_PLAN">Plan de bornage</option>
+                <option value="TRANSFER_AGREEMENT">Accord de transfert</option>
+                <option value="COURT_ORDER">Decision judiciaire</option>
+                <option value="VALUATION_REPORT">Rapport de valeur</option>
+                <option value="SERVICE_RECORD">Dossier de service</option>
+              </select>
+            </label>
+            <label>
+              Proprietaire logique
+              <select
+                name="ownerType"
+                value={documentOwnerType}
+                onChange={(event) => setDocumentOwnerType(event.target.value)}
+              >
+                <option value="parcel">Parcelle</option>
+                <option value="party">Partie</option>
+                <option value="application">Application</option>
+                <option value="workflow-task">Tache workflow</option>
+                <option value="dispute-case">Dossier litige</option>
+              </select>
+            </label>
+            <label>
+              UUID proprietaire
+              <input
+                name="ownerId"
+                value={documentOwnerId || parcelId}
+                onChange={(event) => setDocumentOwnerId(event.target.value)}
+                placeholder="UUID parcelle, partie, application ou tache"
+                required
+              />
+            </label>
+            <label>
+              Titre
+              <input name="title" defaultValue="Plan de bornage fictif - preuve locale" required />
+            </label>
+            <label>
+              Classification
+              <select name="classification" defaultValue="LEGAL_EVIDENCE">
+                <option value="STAFF_OPERATIONAL">Operationnel staff</option>
+                <option value="PROTECTED_PERSONAL">Personnel protege</option>
+                <option value="LEGAL_EVIDENCE">Preuve legale</option>
+                <option value="FINANCIAL">Financier</option>
+                <option value="SECURITY">Securite</option>
+                <option value="PUBLIC">Public approuve</option>
+              </select>
+            </label>
+            <label>
+              Retention
+              <input name="retentionCategory" defaultValue="LEGAL_RECORD" />
+            </label>
+            <label>
+              Politique d&apos;acces
+              <select name="accessPolicy" defaultValue="workflow-task-and-authorized-staff">
+                <option value="workflow-task-and-authorized-staff">Workflow + agents autorises</option>
+                <option value="restricted-staff">Agents restreints</option>
+                <option value="application-applicant-and-authorized-staff">Demandeur + agents autorises</option>
+              </select>
+            </label>
+            <label>
+              Organisation gardienne
+              <input name="custodianOrganizationId" placeholder="UUID optionnel" />
+            </label>
+            <label>
+              Role gardien
+              <input name="custodianRoleCode" defaultValue="CADASTRAL_OFFICER" />
+            </label>
+            <label>
+              Date effective
+              <input name="effectiveAt" type="datetime-local" />
+            </label>
+            <label className="checkbox-label">
+              <input name="legalHold" type="checkbox" />
+              Conservation legale active
+            </label>
+            <label>
+              Cle objet chiffree
+              <input name="objectStorageKey" defaultValue="documents/fictional/survey-plan-v1.pdf" />
+            </label>
+            <label>
+              Nom fichier
+              <input name="originalFilename" defaultValue="survey-plan-v1.pdf" />
+            </label>
+            <label>
+              Type media
+              <input name="mediaType" defaultValue="application/pdf" />
+            </label>
+            <label>
+              Taille octets
+              <input name="sizeBytes" type="number" min="0" defaultValue="128" />
+            </label>
+            <label>
+              SHA-256
+              <input
+                name="checksumSha256"
+                defaultValue="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                pattern="[A-Fa-f0-9]{64}"
+              />
+            </label>
+            <label>
+              Scan malware
+              <select name="malwareScanStatus" defaultValue="PENDING">
+                <option value="PENDING">En attente</option>
+                <option value="PASSED">Valide</option>
+                <option value="FAILED">Echec</option>
+                <option value="NOT_REQUIRED">Non requis</option>
+              </select>
+            </label>
+            <label>
+              Signature numerique
+              <select name="digitalSignatureStatus" defaultValue="UNSIGNED">
+                <option value="UNSIGNED">Non signe</option>
+                <option value="VALID">Valide</option>
+                <option value="INVALID">Invalide</option>
+                <option value="UNKNOWN">Inconnue</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit">Creer document/version 1</button>
+          <Result result={documentResult} />
+        </form>
+
+        <div className="form-grid">
+          <label>
+            Document selectionne
+            <input
+              value={selectedDocumentId}
+              onChange={(event) => setSelectedDocumentId(event.target.value)}
+              placeholder="UUID document"
+            />
+          </label>
+          <label>
+            Recherche owner type
+            <input value={documentOwnerType} onChange={(event) => setDocumentOwnerType(event.target.value)} />
+          </label>
+          <label>
+            Recherche owner UUID
+            <input value={documentOwnerId || parcelId} onChange={(event) => setDocumentOwnerId(event.target.value)} />
+          </label>
+        </div>
+        <div className="decision-form">
+          <button type="button" onClick={loadDocumentsByOwner}>
+            Charger documents du proprietaire
+          </button>
+          <button type="button" onClick={downloadDocumentContent}>
+            Telecharger contenu sandbox
+          </button>
+          <Result result={documentDownloadResult} />
+        </div>
+
+        <form className="nested-form" onSubmit={appendDocumentVersion}>
+          <h3>Ajouter une version immutable</h3>
+          <p className="hint">
+            Une nouvelle version conserve les versions precedentes et met a jour les statuts de scan/signature sans
+            remplacer l&apos;historique.
+          </p>
+          <div className="form-grid">
+            <input type="hidden" name="documentId" value={selectedDocumentId} />
+            <label>
+              Cle objet v2
+              <input name="objectStorageKey" defaultValue="documents/fictional/survey-plan-v2.pdf" />
+            </label>
+            <label>
+              Nom fichier v2
+              <input name="originalFilename" defaultValue="survey-plan-v2.pdf" />
+            </label>
+            <label>
+              Type media
+              <input name="mediaType" defaultValue="application/pdf" />
+            </label>
+            <label>
+              Taille octets
+              <input name="sizeBytes" type="number" min="0" defaultValue="192" />
+            </label>
+            <label>
+              SHA-256 v2
+              <input
+                name="checksumSha256"
+                defaultValue="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                pattern="[A-Fa-f0-9]{64}"
+              />
+            </label>
+            <label>
+              Scan malware
+              <select name="malwareScanStatus" defaultValue="PASSED">
+                <option value="PENDING">En attente</option>
+                <option value="PASSED">Valide</option>
+                <option value="FAILED">Echec</option>
+                <option value="NOT_REQUIRED">Non requis</option>
+              </select>
+            </label>
+            <label>
+              Signature numerique
+              <select name="digitalSignatureStatus" defaultValue="UNKNOWN">
+                <option value="UNSIGNED">Non signe</option>
+                <option value="VALID">Valide</option>
+                <option value="INVALID">Invalide</option>
+                <option value="UNKNOWN">Inconnue</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit">Ajouter version</button>
+          <Result result={documentVersionResult} />
+        </form>
+
+        {documents.length === 0 ? (
+          <p className="hint">Aucun document charge.</p>
+        ) : (
+          <div className="evidence-list" aria-label="Documents controles">
+            {documents.map((item) => (
+              <article className="record-card" key={item.id}>
+                <div className="section-row">
+                  <strong>{item.title}</strong>
+                  <button type="button" onClick={() => setSelectedDocumentId(item.id)}>
+                    Selectionner
+                  </button>
+                </div>
+                <span>
+                  {item.documentType} · {item.classification} · {item.accessPolicy}
+                </span>
+                <small>
+                  Retention: {item.retentionCategory} · Legal hold: {item.legalHold ? "oui" : "non"} · Gardien:{" "}
+                  {item.custodianRoleCode ?? "non defini"} · Cree par {item.createdBy}
+                </small>
+                <small>
+                  Owner: {item.ownerType}/{item.ownerId} · Document UUID: {item.id}
+                </small>
+                {item.versions.map((version) => (
+                  <small key={version.id}>
+                    v{version.versionNumber}: {version.originalFilename} · {version.malwareScanStatus} ·{" "}
+                    {version.digitalSignatureStatus} · {version.checksumSha256}
+                  </small>
+                ))}
+              </article>
+            ))}
+          </div>
         )}
       </section>
 
@@ -2258,7 +2680,15 @@ export function StaffConsoleClient() {
               </label>
               <label>
                 Reference
-                <input name="referenceType" defaultValue="manual-note" />
+                <input name="referenceType" defaultValue={selectedDocumentId ? "document" : "manual-note"} />
+              </label>
+              <label>
+                UUID reference
+                <input
+                  name="referenceId"
+                  defaultValue={selectedDocumentId}
+                  placeholder="UUID document si type DOCUMENT"
+                />
               </label>
               <label>
                 Identifiant externe
