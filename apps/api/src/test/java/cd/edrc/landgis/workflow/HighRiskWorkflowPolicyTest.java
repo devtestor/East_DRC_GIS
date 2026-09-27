@@ -24,7 +24,8 @@ class HighRiskWorkflowPolicyTest {
                         "PARCEL_RESTRICTION_RELEASE",
                         "DISPUTE_CASE_DECISION",
                         "REGISTERED_DEVICE_LIFECYCLE",
-                        "PILOT_GO_NO_GO");
+                        "PILOT_GO_NO_GO",
+                        "DOCUMENT_EXPORT_REVIEW");
     }
 
     @Test
@@ -63,5 +64,21 @@ class HighRiskWorkflowPolicyTest {
                 "APPROVE_SECURITY",
                 "SECURITY_OFFICER");
     }
-}
 
+    @Test
+    void allowsDocumentExportReviewOnlyForSecurityOfficer() {
+        policy.requireAllowedOpening(
+                "DOCUMENT_EXPORT_REVIEW",
+                "document-export-request",
+                "APPROVE_DOCUMENT_EXPORT",
+                "SECURITY_OFFICER");
+
+        assertThatThrownBy(() -> policy.requireAllowedOpening(
+                "DOCUMENT_EXPORT_REVIEW",
+                "document-export-request",
+                "APPROVE_DOCUMENT_EXPORT",
+                "LAND_TITLE_OFFICER"))
+                .isInstanceOf(PrivilegedWorkflowPolicyViolationException.class)
+                .hasMessageContaining("SECURITY_OFFICER");
+    }
+}

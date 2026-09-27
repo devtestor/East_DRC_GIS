@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/devices/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/documents/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/disputes/**").hasRole("STAFF")
+                        .requestMatchers("/api/v1/governance/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/parties/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/parcels/**").hasRole("STAFF")
                         .requestMatchers("/api/v1/pilots/**").hasRole("STAFF")

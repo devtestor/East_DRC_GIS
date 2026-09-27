@@ -18,7 +18,8 @@ public class HighRiskWorkflowPolicy {
             new WorkflowPolicyRule("DISPUTE_CASE_REOPEN", "dispute-case", "REOPEN_DISPUTE_CASE", "LAND_TITLE_OFFICER", true),
             new WorkflowPolicyRule("PARCEL_INFORMATION_REQUEST_REVIEW", "parcel-information-application", "APPROVE_PARCEL_INFORMATION_REQUEST", "LAND_TITLE_OFFICER", false),
             new WorkflowPolicyRule("PILOT_SIGNOFF_REVIEW", "pilot-signoff", "APPROVE_*", ANY, true),
-            new WorkflowPolicyRule("PILOT_GO_NO_GO", "pilot-readiness-record", "APPROVE_PILOT_GO", "PROVINCIAL_LAND_ADMINISTRATOR", true));
+            new WorkflowPolicyRule("PILOT_GO_NO_GO", "pilot-readiness-record", "APPROVE_PILOT_GO", "PROVINCIAL_LAND_ADMINISTRATOR", true),
+            new WorkflowPolicyRule("DOCUMENT_EXPORT_REVIEW", "document-export-request", "APPROVE_DOCUMENT_EXPORT", "SECURITY_OFFICER", true));
 
     public void requireAllowedOpening(String workflowType, String targetType, String requestedAction, String assignedToRole) {
         WorkflowPolicyRule rule = findRule(workflowType, targetType, requestedAction);
@@ -85,4 +86,3 @@ public class HighRiskWorkflowPolicy {
         }
     }
 }
-

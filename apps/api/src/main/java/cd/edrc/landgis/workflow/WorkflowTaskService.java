@@ -159,6 +159,18 @@ public class WorkflowTaskService {
         return tasks.save(task).id();
     }
 
+    @Transactional
+    public UUID openDocumentExportReviewTask(UUID exportRequestId, AuthenticatedActor requestedBy) {
+        WorkflowTask task = newControlledTask(
+                "DOCUMENT_EXPORT_REVIEW",
+                "document-export-request",
+                exportRequestId,
+                "APPROVE_DOCUMENT_EXPORT",
+                requestedBy,
+                "SECURITY_OFFICER");
+        return tasks.save(task).id();
+    }
+
     @Transactional(readOnly = true)
     public List<WorkflowTaskResponse> listOpenTasks() {
         return tasks.findByStatusOrderByCreatedAtAsc(WorkflowTaskStatus.OPEN).stream()

@@ -52,6 +52,19 @@ class WorkflowTaskServiceTest {
     }
 
     @Test
+    void opensDocumentExportReviewTaskForSecurityOfficerReview() {
+        WorkflowTaskRepository tasks = Mockito.mock(WorkflowTaskRepository.class);
+        WorkflowTaskEvidenceLinkRepository evidence = Mockito.mock(WorkflowTaskEvidenceLinkRepository.class);
+        WorkflowRoleScopeAuthorizer roleScopes = Mockito.mock(WorkflowRoleScopeAuthorizer.class);
+        when(tasks.save(any(WorkflowTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        WorkflowTaskService service = new WorkflowTaskService(tasks, evidence, roleScopes, Mockito.mock(WorkflowEvidenceValidator.class), HIGH_RISK_POLICY);
+
+        UUID taskId = service.openDocumentExportReviewTask(UUID.randomUUID(), MAKER);
+
+        assertThat(taskId).isNotNull();
+    }
+
+    @Test
     void approvesOpenTaskWithDecisionMetadata() {
         UUID taskId = UUID.randomUUID();
         UUID parcelId = UUID.randomUUID();
