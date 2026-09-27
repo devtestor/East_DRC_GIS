@@ -246,6 +246,43 @@ type FormalPilotOperationalGateResponse = {
   evidenceReference: string | null;
 };
 
+type DocumentExportRequestResponse = {
+  id: string;
+  documentId: string;
+  purpose: string;
+  redactionPlanned: boolean;
+  status: string;
+  redactionRequired: boolean;
+  approvalRequired: boolean;
+  blockers: string[];
+  workflowTaskId: string | null;
+  requestedByUserId: string;
+  requestedBy: string;
+  requestedAt: string;
+  decidedByUserId: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+};
+
+type DocumentExportPackageResponse = {
+  id: string;
+  exportRequestId: string;
+  documentId: string;
+  documentVersionId: string;
+  objectStorageKey: string;
+  manifestSha256: string;
+  packageSha256: string;
+  packageSizeBytes: number;
+  expiresAt: string;
+  generatedByUserId: string;
+  generatedBy: string;
+  generatedAt: string;
+  downloadedAt: string | null;
+  downloadCount: number;
+  deliveryToken: string | null;
+};
+
 const defaultApiUrl = "http://localhost:8080";
 
 export function StaffConsoleClient() {
@@ -293,6 +330,15 @@ export function StaffConsoleClient() {
   const [formalPilots, setFormalPilots] = useState<FormalPilotResponse[]>([]);
   const [formalPilotId, setFormalPilotId] = useState("");
   const [formalPilotResult, setFormalPilotResult] = useState<ApiResult | null>(null);
+  const [exportRequestId, setExportRequestId] = useState("");
+  const [exportPackageId, setExportPackageId] = useState("");
+  const [exportDeliveryToken, setExportDeliveryToken] = useState("");
+  const [exportRequest, setExportRequest] = useState<DocumentExportRequestResponse | null>(null);
+  const [exportPackage, setExportPackage] = useState<DocumentExportPackageResponse | null>(null);
+  const [exportRequestResult, setExportRequestResult] = useState<ApiResult | null>(null);
+  const [exportReviewResult, setExportReviewResult] = useState<ApiResult | null>(null);
+  const [exportPackageResult, setExportPackageResult] = useState<ApiResult | null>(null);
+  const [exportDownloadResult, setExportDownloadResult] = useState<ApiResult | null>(null);
   const authHeader = useMemo(() => `Basic ${btoa(`${email}:${password}`)}`, [email, password]);
   const selectedWorkflowTask = useMemo(
     () => workflowTasks.find((task) => task.id === workflowTaskId) ?? null,
@@ -318,11 +364,148 @@ export function StaffConsoleClient() {
     };
   }
 
+  async function downloadApi(path: string): Promise<{ result: ApiResult; blob?: Blob; filename?: string }> {
+    const response = await fetch(`${apiUrl}${path}`, {
+      headers: {
+        Authorization: authHeader,
+        "X-Correlation-Id": crypto.randomUUID()
+      }
+    });
+    if (!response.ok) {
+      return {
+        result: {
+          ok: false,
+          status: response.status,
+          body: formatBody(await response.text())
+        }
+      };
+    }
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const filename = disposition.match(/filename="?([^";]+)"?/)?.[1] ?? "governed-export-package.txt";
+    return {
+      result: {
+        ok: true,
+        status: response.status,
+        body: `Package telecharge: ${filename}`
+      },
+      blob: await response.blob(),
+      filename
+    };
+  }
+
   async function loadNotifications() {
     const result = await callApi("/api/v1/notifications");
     setNotificationResult(result);
     if (result.ok) {
       setNotifications(JSON.parse(result.body) as NotificationResponse[]);
+    }
+  }
+
+  async function createDocumentExportRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const result = await callApi("/api/v1/governance/export-requests", {
+      method: "POST",
+      payload: {
+        documentId: data.get("documentId"),
+        purpose: data.get("purpose"),
+        redactionPlanned: data.get("redactionPlanned") === "on"
+      }
+    });
+    setExportRequestResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentExportRequestResponse;
+      setExportRequest(parsed);
+      setExportRequestId(parsed.id);
+      if (parsed.workflowTaskId) {
+        selectWorkflowTask(parsed.workflowTaskId);
+        await loadWorkflowTasks();
+      }
+    }
+  }
+
+  async function loadDocumentExportRequest() {
+    const targetRequestId = exportRequestId.trim();
+    if (!targetRequestId) return;
+    const result = await callApi(`/api/v1/governance/export-requests/${targetRequestId}`);
+    setExportRequestResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentExportRequestResponse;
+      setExportRequest(parsed);
+      if (parsed.workflowTaskId) selectWorkflowTask(parsed.workflowTaskId);
+    }
+  }
+
+  async function completeDocumentExportReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetRequestId = String(data.get("exportRequestId") ?? "").trim();
+    const result = await callApi(`/api/v1/governance/export-requests/${targetRequestId}/review-completion`, {
+      method: "POST",
+      payload: {
+        decision: data.get("decision"),
+        reason: data.get("reason")
+      }
+    });
+    setExportReviewResult(result);
+    if (result.ok) {
+      setExportRequest(JSON.parse(result.body) as DocumentExportRequestResponse);
+      await loadWorkflowTasks();
+    }
+  }
+
+  async function generateDocumentExportPackage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetRequestId = String(data.get("exportRequestId") ?? "").trim();
+    const result = await callApi(`/api/v1/governance/export-requests/${targetRequestId}/packages`, {
+      method: "POST",
+      payload: {
+        expiresInMinutes: Number(data.get("expiresInMinutes") ?? 30)
+      }
+    });
+    setExportPackageResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentExportPackageResponse;
+      setExportPackage(parsed);
+      setExportPackageId(parsed.id);
+      setExportDeliveryToken(parsed.deliveryToken ?? "");
+    }
+  }
+
+  async function loadDocumentExportPackage() {
+    const targetPackageId = exportPackageId.trim();
+    if (!targetPackageId) return;
+    const result = await callApi(`/api/v1/governance/export-packages/${targetPackageId}`);
+    setExportPackageResult(result);
+    if (result.ok) {
+      setExportPackage(JSON.parse(result.body) as DocumentExportPackageResponse);
+    }
+  }
+
+  async function downloadDocumentExportPackage() {
+    const targetPackageId = exportPackageId.trim();
+    const token = exportDeliveryToken.trim();
+    if (!targetPackageId || !token) {
+      setExportDownloadResult({
+        ok: false,
+        status: 400,
+        body: "UUID package et jeton de livraison requis."
+      });
+      return;
+    }
+    const { result, blob, filename } = await downloadApi(
+      `/api/v1/governance/export-packages/${targetPackageId}/download?token=${encodeURIComponent(token)}`
+    );
+    setExportDownloadResult(result);
+    if (result.ok && blob) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename ?? "governed-export-package.txt";
+      link.click();
+      URL.revokeObjectURL(url);
+      await loadDocumentExportPackage();
     }
   }
 
@@ -842,7 +1025,9 @@ export function StaffConsoleClient() {
                   ? `/api/v1/pilots/signoffs/tasks/${targetTaskId}/decisions`
                   : selectedTask?.workflowType === "PILOT_GO_NO_GO"
                     ? `/api/v1/pilots/tasks/${targetTaskId}/decisions`
-                : `/api/v1/workflow/tasks/${targetTaskId}/decisions`;
+                    : selectedTask?.workflowType === "DOCUMENT_EXPORT_REVIEW"
+                      ? `/api/v1/workflow/tasks/${targetTaskId}/decisions`
+                      : `/api/v1/workflow/tasks/${targetTaskId}/decisions`;
     const result = await callApi(decisionPath, {
       method: "POST",
       payload: {
@@ -1057,6 +1242,139 @@ export function StaffConsoleClient() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="panel" aria-labelledby="export-governance-heading">
+        <div className="section-row">
+          <div>
+            <p className="eyebrow">Gouvernance des donnees</p>
+            <h2 id="export-governance-heading">Exports documentaires controles</h2>
+            <p className="hint">
+              Les exports proteges exigent une demande, une revue humaine et un package avec jeton expire. Aucun SMS
+              ou email ne doit contenir des details de proprietaire, preuve legale ou information financiere.
+            </p>
+          </div>
+          <button type="button" onClick={loadDocumentExportRequest}>
+            Actualiser demande
+          </button>
+        </div>
+
+        <form className="nested-form" onSubmit={createDocumentExportRequest}>
+          <h3>Creer une demande d&apos;export</h3>
+          <div className="form-grid">
+            <label>
+              UUID document source
+              <input name="documentId" required placeholder="UUID du document" />
+            </label>
+            <label>
+              But de l&apos;export
+              <input name="purpose" defaultValue="Audit provincial avec redaction planifiee" required />
+            </label>
+            <label className="checkbox-label">
+              <input name="redactionPlanned" type="checkbox" defaultChecked />
+              Plan de redaction confirme
+            </label>
+          </div>
+          <button type="submit">Soumettre la demande</button>
+          <Result result={exportRequestResult} />
+        </form>
+
+        <div className="form-grid">
+          <label>
+            UUID demande d&apos;export
+            <input value={exportRequestId} onChange={(event) => setExportRequestId(event.target.value)} />
+          </label>
+          <label>
+            UUID package
+            <input value={exportPackageId} onChange={(event) => setExportPackageId(event.target.value)} />
+          </label>
+          <label>
+            Jeton de livraison
+            <input
+              value={exportDeliveryToken}
+              onChange={(event) => setExportDeliveryToken(event.target.value)}
+              placeholder="Affiche seulement lors de la generation"
+            />
+          </label>
+        </div>
+
+        {exportRequest ? (
+          <article className="record-card">
+            <strong>Demande {exportRequest.status}</strong>
+            <span>Document {exportRequest.documentId}</span>
+            <small>
+              Redaction requise: {exportRequest.redactionRequired ? "oui" : "non"} · Approbation requise:{" "}
+              {exportRequest.approvalRequired ? "oui" : "non"} · Tache: {exportRequest.workflowTaskId ?? "aucune"}
+            </small>
+            {exportRequest.blockers.length > 0 ? (
+              <small>Bloqueurs: {exportRequest.blockers.join(", ")}</small>
+            ) : null}
+          </article>
+        ) : (
+          <p className="hint">Aucune demande d&apos;export chargee.</p>
+        )}
+
+        <form className="nested-form" onSubmit={completeDocumentExportReview}>
+          <h3>Cloturer la revue gouvernance</h3>
+          <p className="hint">
+            Effectuez d&apos;abord la decision sur la tache `DOCUMENT_EXPORT_REVIEW` dans le panneau workflow, puis
+            enregistrez ici le resultat final de gouvernance.
+          </p>
+          <div className="form-grid">
+            <input type="hidden" name="exportRequestId" value={exportRequestId} />
+            <label>
+              Decision
+              <select name="decision" defaultValue="APPROVE">
+                <option value="APPROVE">Approuver l&apos;export redige</option>
+                <option value="REJECT">Rejeter l&apos;export</option>
+              </select>
+            </label>
+            <label>
+              Motif
+              <input name="reason" defaultValue="Revue securite terminee et preuves controlees" />
+            </label>
+          </div>
+          <button type="submit">Enregistrer la revue d&apos;export</button>
+          <Result result={exportReviewResult} />
+        </form>
+
+        <form className="nested-form" onSubmit={generateDocumentExportPackage}>
+          <h3>Generer le package securise</h3>
+          <div className="form-grid">
+            <input type="hidden" name="exportRequestId" value={exportRequestId} />
+            <label>
+              Expiration du jeton (minutes)
+              <input name="expiresInMinutes" type="number" min="5" max="1440" defaultValue="30" />
+            </label>
+          </div>
+          <button type="submit">Generer package</button>
+          <button type="button" onClick={loadDocumentExportPackage}>
+            Charger package
+          </button>
+          <Result result={exportPackageResult} />
+        </form>
+
+        {exportPackage ? (
+          <article className="record-card">
+            <strong>Package {exportPackage.id}</strong>
+            <span>SHA-256: {exportPackage.packageSha256}</span>
+            <small>
+              Manifest: {exportPackage.manifestSha256} · Taille: {exportPackage.packageSizeBytes} octets ·
+              Expire le {new Date(exportPackage.expiresAt).toLocaleString("fr-CD")}
+            </small>
+            <small>
+              Telechargements: {exportPackage.downloadCount} · Jeton affiche:{" "}
+              {exportPackage.deliveryToken ? "oui, sauvegardez-le maintenant" : "non"}
+            </small>
+          </article>
+        ) : null}
+
+        <div className="decision-form">
+          <button type="button" onClick={downloadDocumentExportPackage}>
+            Telecharger avec jeton
+          </button>
+          <Result result={exportDownloadResult} />
+        </div>
       </section>
 
       <section className="panel" aria-labelledby="pilot-readiness-heading">
@@ -1877,7 +2195,9 @@ export function StaffConsoleClient() {
                           ? "revue d'un dossier de litige"
                           : selectedWorkflowTask.workflowType === "PARCEL_INFORMATION_REQUEST_REVIEW"
                             ? "revue d'une demande d'information parcellaire"
-                            : "transition parcelle"}
+                            : selectedWorkflowTask.workflowType === "DOCUMENT_EXPORT_REVIEW"
+                              ? "revue d'un export documentaire protege"
+                              : "transition parcelle"}
               </span>
               <span>
                 Role attendu: {selectedWorkflowTask.assignedToRole ?? "non defini"} · statut:{" "}
