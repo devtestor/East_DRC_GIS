@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type ApiResult = {
   ok: boolean;
@@ -325,7 +325,172 @@ type DocumentResponse = {
 
 const defaultApiUrl = "http://localhost:8080";
 
+const supportedLanguages = [
+  { code: "fr", label: "Français" },
+  { code: "en", label: "English" },
+  { code: "sw", label: "Kiswahili" }
+] as const;
+
+type StaffConsoleLanguage = (typeof supportedLanguages)[number]["code"];
+
+const copy: Record<StaffConsoleLanguage, Record<string, string>> = {
+  fr: {
+    appName: "EDRC Land GIS",
+    productBoundary: "Système proposé de gestion foncière et SIG — pas un registre officiel",
+    staffConsole: "Console agents",
+    heroTitle: "Opérations foncières contrôlées",
+    heroBody:
+      "Un espace de travail sécurisé pour préparer, vérifier et auditer les dossiers fonciers. Les décisions légales finales restent réservées aux autorités humaines compétentes.",
+    legalNotice:
+      "Les certificats, UPI et extraits générés ici sont des artefacts de travail proposés tant qu’une autorisation officielle n’est pas configurée.",
+    language: "Langue",
+    quickNav: "Navigation rapide",
+    connection: "Connexion",
+    documents: "Documents",
+    exports: "Exports",
+    pilot: "Pilote",
+    parcels: "Parcelles",
+    workflow: "Workflow",
+    apiConnection: "Connexion locale API",
+    apiConnectionHint: "Paramètres de session locale. Ne jamais utiliser d’identifiants réels de production.",
+    apiUrl: "URL API",
+    staffEmail: "Email agent",
+    password: "Mot de passe",
+    operationsOverview: "Vue opérationnelle",
+    loadedDocuments: "Documents chargés",
+    openTasks: "Tâches ouvertes",
+    notifications: "Notifications",
+    documentBlockers: "Blocages documentaires",
+    operationalNotifications: "Notifications opérationnelles",
+    notificationHint: "Messages de service destinés uniquement à l’agent authentifié.",
+    refresh: "Actualiser",
+    noneLoaded: "Aucun élément chargé.",
+    markRead: "Marquer comme lu",
+    read: "Lu",
+    documentEvidence: "Documents et preuves",
+    documentIntake: "Intake documentaire contrôlé",
+    documentIntakeHint:
+      "Métadonnées, versions, scans, signatures et quarantaine sont gérés sans stocker les fichiers volumineux dans la base transactionnelle.",
+    refreshDocument: "Actualiser document",
+    dataGovernance: "Gouvernance des données",
+    controlledExports: "Exports documentaires contrôlés",
+    controlledExportsHint:
+      "Les exports protégés exigent une demande, une revue humaine, un package traçable et aucune donnée sensible dans les canaux non sécurisés.",
+    pilotReadiness: "Préparation pilote",
+    formalPilot: "Dossier pilote formel",
+    foundationFlows: "Flux cadastraux et registre",
+    foundationFlowsHint:
+      "Création administrative, brouillons de parcelles, géométries, parties, restrictions et tâches maker-checker.",
+    workflowTasks: "Tâches de workflow",
+    workflowHint:
+      "Les transitions sensibles restent en attente jusqu’à une validation humaine explicite, auditable et autorisée."
+  },
+  en: {
+    appName: "EDRC Land GIS",
+    productBoundary: "Proposed land and GIS management system — not an official registry",
+    staffConsole: "Staff console",
+    heroTitle: "Controlled land operations",
+    heroBody:
+      "A secure workspace to prepare, verify and audit land-service records. Final legal decisions remain with authorized human institutions.",
+    legalNotice:
+      "Certificates, UPIs and extracts generated here are proposed workflow artifacts until formal authority is configured.",
+    language: "Language",
+    quickNav: "Quick navigation",
+    connection: "Connection",
+    documents: "Documents",
+    exports: "Exports",
+    pilot: "Pilot",
+    parcels: "Parcels",
+    workflow: "Workflow",
+    apiConnection: "Local API connection",
+    apiConnectionHint: "Local session settings. Never use real production credentials here.",
+    apiUrl: "API URL",
+    staffEmail: "Staff email",
+    password: "Password",
+    operationsOverview: "Operational overview",
+    loadedDocuments: "Loaded documents",
+    openTasks: "Open tasks",
+    notifications: "Notifications",
+    documentBlockers: "Document blockers",
+    operationalNotifications: "Operational notifications",
+    notificationHint: "Service messages for the authenticated staff user only.",
+    refresh: "Refresh",
+    noneLoaded: "Nothing loaded yet.",
+    markRead: "Mark as read",
+    read: "Read",
+    documentEvidence: "Documents and evidence",
+    documentIntake: "Controlled document intake",
+    documentIntakeHint:
+      "Metadata, versions, scans, signatures and quarantine are managed without storing large files in the transactional database.",
+    refreshDocument: "Refresh document",
+    dataGovernance: "Data governance",
+    controlledExports: "Controlled document exports",
+    controlledExportsHint:
+      "Protected exports require a request, human review, traceable package and no sensitive details in unsecured channels.",
+    pilotReadiness: "Pilot readiness",
+    formalPilot: "Formal pilot dossier",
+    foundationFlows: "Cadastral and registry flows",
+    foundationFlowsHint:
+      "Administrative setup, parcel drafts, geometry, parties, restrictions and maker-checker workflow tasks.",
+    workflowTasks: "Workflow tasks",
+    workflowHint:
+      "Sensitive transitions remain pending until explicit, auditable and authorized human validation."
+  },
+  sw: {
+    appName: "EDRC Land GIS",
+    productBoundary: "Mfumo pendekezwa wa ardhi na GIS — si rejesta rasmi",
+    staffConsole: "Dashibodi ya watumishi",
+    heroTitle: "Uendeshaji wa ardhi unaodhibitiwa",
+    heroBody:
+      "Nafasi salama ya kuandaa, kuthibitisha na kukagua kumbukumbu za huduma za ardhi. Maamuzi ya mwisho ya kisheria hubaki kwa taasisi zilizoidhinishwa.",
+    legalNotice:
+      "Vyeti, UPI na dondoo zinazozalishwa hapa ni vielelezo vya kazi vilivyopendekezwa mpaka mamlaka rasmi isanidiwe.",
+    language: "Lugha",
+    quickNav: "Urambazaji wa haraka",
+    connection: "Muunganisho",
+    documents: "Nyaraka",
+    exports: "Mauzo ya data",
+    pilot: "Jaribio",
+    parcels: "Viwanja",
+    workflow: "Mtiririko wa kazi",
+    apiConnection: "Muunganisho wa API wa ndani",
+    apiConnectionHint: "Mipangilio ya kikao cha ndani. Usitumie kamwe siri halisi za uzalishaji.",
+    apiUrl: "URL ya API",
+    staffEmail: "Barua pepe ya mtumishi",
+    password: "Nenosiri",
+    operationsOverview: "Muhtasari wa uendeshaji",
+    loadedDocuments: "Nyaraka zilizopakiwa",
+    openTasks: "Kazi zilizo wazi",
+    notifications: "Arifa",
+    documentBlockers: "Vizuizi vya nyaraka",
+    operationalNotifications: "Arifa za uendeshaji",
+    notificationHint: "Ujumbe wa huduma kwa mtumishi aliyeingia pekee.",
+    refresh: "Sasisha",
+    noneLoaded: "Hakuna kilichopakiwa bado.",
+    markRead: "Weka kama imesomwa",
+    read: "Imesomwa",
+    documentEvidence: "Nyaraka na ushahidi",
+    documentIntake: "Upokeaji wa nyaraka unaodhibitiwa",
+    documentIntakeHint:
+      "Metadata, matoleo, skani, saini na karantini husimamiwa bila kuhifadhi faili kubwa kwenye hifadhidata ya miamala.",
+    refreshDocument: "Sasisha waraka",
+    dataGovernance: "Utawala wa data",
+    controlledExports: "Utoaji wa nyaraka unaodhibitiwa",
+    controlledExportsHint:
+      "Utoaji wa data lindwa unahitaji ombi, ukaguzi wa binadamu, kifurushi kinachofuatiliwa na hakuna taarifa nyeti kwenye njia zisizo salama.",
+    pilotReadiness: "Utayari wa jaribio",
+    formalPilot: "Jalada rasmi la jaribio",
+    foundationFlows: "Mtiririko wa kadasta na rejesta",
+    foundationFlowsHint:
+      "Usanidi wa utawala, rasimu za viwanja, jiometria, wahusika, vizuizi na kazi za maker-checker.",
+    workflowTasks: "Kazi za mtiririko",
+    workflowHint:
+      "Mabadiliko nyeti husubiri uthibitisho wa wazi, unaokaguliwa na ulioidhinishwa na binadamu."
+  }
+};
+
 export function StaffConsoleClient() {
+  const [language, setLanguage] = useState<StaffConsoleLanguage>("fr");
   const [apiUrl, setApiUrl] = useState(defaultApiUrl);
   const [email, setEmail] = useState("phase2.staff@example.test");
   const [password, setPassword] = useState("ChangeMe-Phase2-Local!");
@@ -400,6 +565,17 @@ export function StaffConsoleClient() {
   );
   const selectedDocumentLatestVersion = selectedDocument ? latestDocumentVersion(selectedDocument) : null;
   const selectedTaskRequiresEvidence = selectedWorkflowTask?.status === "CLAIMED" || selectedWorkflowTask?.status === "OPEN";
+  const t = copy[language];
+  const locale = language === "en" ? "en-US" : language === "sw" ? "sw-CD" : "fr-FR";
+  const documentBlockerCount =
+    documentGovernanceSummary.pendingScan
+    + documentGovernanceSummary.failedScan
+    + documentGovernanceSummary.invalidSignature
+    + documentGovernanceSummary.quarantined;
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   async function callApi(path: string, options: { method?: string; payload?: unknown } = {}): Promise<ApiResult> {
     const response = await fetch(`${apiUrl}${path}`, {
@@ -1420,28 +1596,88 @@ export function StaffConsoleClient() {
 
   return (
     <main className="shell">
-      <header>
-        <p className="eyebrow">Console agents</p>
-        <h1>Operations foncieres controlees</h1>
-        <p>
-          Creation controlee des unites administratives et des brouillons de parcelles. Les
-          geometries approuvees, droits legaux et titres officiels restent hors de ce flux.
-        </p>
+      <header className="hero">
+        <nav className="topbar" aria-label={t.quickNav}>
+          <a className="brand-mark" href="#top" aria-label={t.appName}>
+            <span>ED</span>
+            <strong>{t.appName}</strong>
+          </a>
+          <div className="topbar-links">
+            <a href="#connection-heading">{t.connection}</a>
+            <a href="#document-intake-heading">{t.documents}</a>
+            <a href="#export-governance-heading">{t.exports}</a>
+            <a href="#pilot-readiness-heading">{t.pilot}</a>
+            <a href="#foundation-flows-heading">{t.parcels}</a>
+            <a href="#workflow-heading">{t.workflow}</a>
+          </div>
+          <label className="language-switcher">
+            <span>{t.language}</span>
+            <select
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as StaffConsoleLanguage)}
+            >
+              {supportedLanguages.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </nav>
+
+        <div className="hero-grid" id="top">
+          <div className="hero-copy">
+            <p className="eyebrow">{t.staffConsole}</p>
+            <h1>{t.heroTitle}</h1>
+            <p>{t.heroBody}</p>
+            <aside className="legal-boundary" aria-label={t.productBoundary}>
+              <strong>{t.productBoundary}</strong>
+              <span>{t.legalNotice}</span>
+            </aside>
+          </div>
+
+          <section className="overview-card" aria-labelledby="overview-heading">
+            <p className="eyebrow">{t.operationsOverview}</p>
+            <h2 id="overview-heading">{t.operationsOverview}</h2>
+            <div className="metric-grid">
+              <article>
+                <strong>{documents.length}</strong>
+                <span>{t.loadedDocuments}</span>
+              </article>
+              <article>
+                <strong>{workflowTasks.length}</strong>
+                <span>{t.openTasks}</span>
+              </article>
+              <article>
+                <strong>{notifications.length}</strong>
+                <span>{t.notifications}</span>
+              </article>
+              <article className={documentBlockerCount > 0 ? "attention" : ""}>
+                <strong>{documentBlockerCount}</strong>
+                <span>{t.documentBlockers}</span>
+              </article>
+            </div>
+          </section>
+        </div>
       </header>
 
-      <section className="panel" aria-labelledby="connection-heading">
-        <h2 id="connection-heading">Connexion locale API</h2>
+      <section className="panel connection-panel" aria-labelledby="connection-heading">
+        <div>
+          <p className="eyebrow">{t.connection}</p>
+          <h2 id="connection-heading">{t.apiConnection}</h2>
+          <p className="hint">{t.apiConnectionHint}</p>
+        </div>
         <div className="form-grid">
           <label>
-            API URL
+            {t.apiUrl}
             <input value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} />
           </label>
           <label>
-            Email agent
+            {t.staffEmail}
             <input value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
           <label>
-            Mot de passe
+            {t.password}
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
         </div>
@@ -1450,24 +1686,24 @@ export function StaffConsoleClient() {
       <section className="panel notification-panel" aria-labelledby="notification-heading">
         <div className="section-row">
           <div>
-            <h2 id="notification-heading">Notifications operationnelles</h2>
-            <p className="hint">Messages de service destines uniquement a l&apos;agent authentifie.</p>
+            <h2 id="notification-heading">{t.operationalNotifications}</h2>
+            <p className="hint">{t.notificationHint}</p>
           </div>
-          <button type="button" onClick={loadNotifications}>Actualiser</button>
+          <button type="button" onClick={loadNotifications}>{t.refresh}</button>
         </div>
         <Result result={notificationResult} />
-        {notifications.length === 0 ? <p className="hint">Aucune notification chargee.</p> : (
-          <ul className="notification-list" aria-label="Notifications operationnelles">
+        {notifications.length === 0 ? <p className="hint">{t.noneLoaded}</p> : (
+          <ul className="notification-list" aria-label={t.operationalNotifications}>
             {notifications.map((notification) => (
               <li className={notification.read ? "notification read" : "notification"} key={notification.id}>
                 <div className="section-row">
                   <strong>{notification.title}</strong>
-                  <small>{new Date(notification.createdAt).toLocaleString("fr-FR")}</small>
+                  <small>{new Date(notification.createdAt).toLocaleString(locale)}</small>
                 </div>
                 <p>{notification.message}</p>
                 {!notification.read ? (
-                  <button type="button" onClick={() => markNotificationRead(notification.id)}>Marquer comme lu</button>
-                ) : <span className="notification-state">Lu</span>}
+                  <button type="button" onClick={() => markNotificationRead(notification.id)}>{t.markRead}</button>
+                ) : <span className="notification-state">{t.read}</span>}
               </li>
             ))}
           </ul>
@@ -1477,15 +1713,12 @@ export function StaffConsoleClient() {
       <section className="panel" aria-labelledby="document-intake-heading">
         <div className="section-row">
           <div>
-            <p className="eyebrow">Documents et preuves</p>
-            <h2 id="document-intake-heading">Intake documentaire controle</h2>
-            <p className="hint">
-              Ce flux cree des metadonnees et des versions de preuve. Les fichiers volumineux restent references par
-              cle d&apos;objet chiffre; le contenu binaire n&apos;est pas stocke dans la base transactionnelle.
-            </p>
+            <p className="eyebrow">{t.documentEvidence}</p>
+            <h2 id="document-intake-heading">{t.documentIntake}</h2>
+            <p className="hint">{t.documentIntakeHint}</p>
           </div>
           <button type="button" onClick={loadDocumentMetadata}>
-            Actualiser document
+            {t.refreshDocument}
           </button>
         </div>
 
@@ -1868,15 +2101,12 @@ export function StaffConsoleClient() {
       <section className="panel" aria-labelledby="export-governance-heading">
         <div className="section-row">
           <div>
-            <p className="eyebrow">Gouvernance des donnees</p>
-            <h2 id="export-governance-heading">Exports documentaires controles</h2>
-            <p className="hint">
-              Les exports proteges exigent une demande, une revue humaine et un package avec jeton expire. Aucun SMS
-              ou email ne doit contenir des details de proprietaire, preuve legale ou information financiere.
-            </p>
+            <p className="eyebrow">{t.dataGovernance}</p>
+            <h2 id="export-governance-heading">{t.controlledExports}</h2>
+            <p className="hint">{t.controlledExportsHint}</p>
           </div>
           <button type="button" onClick={loadDocumentExportRequest}>
-            Actualiser demande
+            {t.refresh}
           </button>
         </div>
 
@@ -2001,12 +2231,13 @@ export function StaffConsoleClient() {
       <section className="panel" aria-labelledby="pilot-readiness-heading">
         <div className="section-row">
           <div>
-            <h2 id="pilot-readiness-heading">Preparation pilote</h2>
+            <p className="eyebrow">{t.pilot}</p>
+            <h2 id="pilot-readiness-heading">{t.pilotReadiness}</h2>
             <p className="hint">
               Controle de disponibilite pour un pilote limite. Ce controle ne vaut pas autorisation de registre officiel.
             </p>
           </div>
-          <button type="button" onClick={loadPilotReadiness}>Verifier</button>
+          <button type="button" onClick={loadPilotReadiness}>{t.refresh}</button>
         </div>
         <Result result={pilotReadinessResult} />
         {pilotReadiness ? (
@@ -2145,7 +2376,14 @@ export function StaffConsoleClient() {
         ))}
       </section>
 
-      <section className="workbench" aria-label="Flux Phase 2">
+      <section className="module-group" aria-labelledby="foundation-flows-heading">
+        <div className="module-heading">
+          <p className="eyebrow">{t.parcels}</p>
+          <h2 id="foundation-flows-heading">{t.foundationFlows}</h2>
+          <p className="hint">{t.foundationFlowsHint}</p>
+        </div>
+
+        <div className="workbench" aria-label={t.foundationFlows}>
         <form className="panel" onSubmit={createAdministrativeUnit}>
           <h2>Unite administrative</h2>
           <div className="form-grid">
@@ -2770,11 +3008,8 @@ export function StaffConsoleClient() {
         </section>
 
         <section className="panel workflow-panel" aria-labelledby="workflow-heading">
-          <h2 id="workflow-heading">Taches de workflow</h2>
-          <p className="hint">
-            Les transitions sensibles restent en attente jusqu'a validation humaine. Cette console
-            applique une decision explicite et auditee.
-          </p>
+          <h2 id="workflow-heading">{t.workflowTasks}</h2>
+          <p className="hint">{t.workflowHint}</p>
           <button type="button" onClick={loadWorkflowTasks}>
             Charger les taches ouvertes
           </button>
@@ -2933,6 +3168,7 @@ export function StaffConsoleClient() {
             <Result result={workflowDecisionResult} />
           </form>
         </section>
+        </div>
       </section>
     </main>
   );
