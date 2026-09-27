@@ -14,6 +14,11 @@ public record DocumentVersionResponse(
         String checksumSha256,
         String malwareScanStatus,
         String digitalSignatureStatus,
+        String safetyStatus,
+        String safetyReason,
+        UUID safetyReviewedByUserId,
+        String safetyReviewedBy,
+        OffsetDateTime safetyReviewedAt,
         UUID uploadedByUserId,
         String uploadedBy,
         OffsetDateTime uploadedAt) {
@@ -29,6 +34,11 @@ public record DocumentVersionResponse(
                 version.checksumSha256(),
                 version.malwareScanStatus().name(),
                 version.digitalSignatureStatus().name(),
+                version.safetyStatus().name(),
+                version.safetyReason(),
+                version.safetyReviewedByUserId(),
+                version.safetyReviewedBy(),
+                version.safetyReviewedAt(),
                 version.uploadedByUserId(),
                 version.uploadedBy(),
                 version.uploadedAt());

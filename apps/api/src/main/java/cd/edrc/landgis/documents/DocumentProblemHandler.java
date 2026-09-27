@@ -33,6 +33,14 @@ public class DocumentProblemHandler {
         return problem;
     }
 
+    @ExceptionHandler(UnsafeDocumentVersionReleaseException.class)
+    ProblemDetail handleUnsafeRelease(UnsafeDocumentVersionReleaseException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setType(URI.create("https://edrc-land-gis.local/problems/document-version-release-blocked"));
+        problem.setTitle("Document version release blocked");
+        return problem;
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail handleConflict(DataIntegrityViolationException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(

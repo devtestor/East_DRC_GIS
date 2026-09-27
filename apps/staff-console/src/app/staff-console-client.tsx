@@ -294,6 +294,11 @@ type DocumentVersionResponse = {
   checksumSha256: string;
   malwareScanStatus: string;
   digitalSignatureStatus: string;
+  safetyStatus: string;
+  safetyReason: string | null;
+  safetyReviewedByUserId: string | null;
+  safetyReviewedBy: string | null;
+  safetyReviewedAt: string | null;
   uploadedByUserId: string;
   uploadedBy: string;
   uploadedAt: string;
@@ -381,6 +386,7 @@ export function StaffConsoleClient() {
   const [documentResult, setDocumentResult] = useState<ApiResult | null>(null);
   const [documentVersionResult, setDocumentVersionResult] = useState<ApiResult | null>(null);
   const [documentSafetyResult, setDocumentSafetyResult] = useState<ApiResult | null>(null);
+  const [documentQuarantineResult, setDocumentQuarantineResult] = useState<ApiResult | null>(null);
   const [documentDownloadResult, setDocumentDownloadResult] = useState<ApiResult | null>(null);
   const authHeader = useMemo(() => `Basic ${btoa(`${email}:${password}`)}`, [email, password]);
   const selectedWorkflowTask = useMemo(
@@ -674,6 +680,33 @@ export function StaffConsoleClient() {
       }
     );
     setDocumentSafetyResult(result);
+    if (result.ok) {
+      const parsed = JSON.parse(result.body) as DocumentResponse;
+      setSelectedDocumentId(parsed.id);
+      setDocuments((current) => [parsed, ...current.filter((item) => item.id !== parsed.id)]);
+    }
+  }
+
+  async function decideDocumentVersionQuarantine(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const targetDocumentId = String(data.get("documentId") ?? "").trim();
+    const targetVersionId = String(data.get("versionId") ?? "").trim();
+    const action = String(data.get("action") ?? "quarantine");
+    if (!targetDocumentId || !targetVersionId) {
+      setDocumentQuarantineResult({ ok: false, status: 400, body: "UUID document et version requis." });
+      return;
+    }
+    const result = await callApi(
+      `/api/v1/documents/${targetDocumentId}/versions/${targetVersionId}/${action}`,
+      {
+        method: "POST",
+        payload: {
+          reason: data.get("reason")
+        }
+      }
+    );
+    setDocumentQuarantineResult(result);
     if (result.ok) {
       const parsed = JSON.parse(result.body) as DocumentResponse;
       setSelectedDocumentId(parsed.id);
@@ -1633,6 +1666,11 @@ export function StaffConsoleClient() {
             <span>Signature invalide</span>
             <small>Blocage dur pour les exports gouvernes.</small>
           </article>
+          <article className={`readiness-check ${documentGovernanceSummary.quarantined > 0 ? "attention" : "ready"}`}>
+            <strong>{documentGovernanceSummary.quarantined}</strong>
+            <span>Versions en quarantaine</span>
+            <small>Export bloque jusqu&apos;a liberation humaine documentee.</small>
+          </article>
         </div>
 
         <form className="nested-form" onSubmit={appendDocumentVersion}>
@@ -1743,6 +1781,48 @@ export function StaffConsoleClient() {
           <Result result={documentSafetyResult} />
         </form>
 
+        <form
+          className="nested-form"
+          key={`quarantine-${selectedDocumentId}-${selectedDocumentLatestVersion?.id ?? "no-version"}`}
+          onSubmit={decideDocumentVersionQuarantine}
+        >
+          <h3>Quarantaine / liberation de version</h3>
+          <p className="hint">
+            Controle operationnel distinct du scan: une version en quarantaine reste conservee mais bloque les exports
+            gouvernes jusqu&apos;a liberation explicite apres revue humaine.
+          </p>
+          <div className="form-grid">
+            <label>
+              Document UUID
+              <input name="documentId" defaultValue={selectedDocumentId} placeholder="UUID document" />
+            </label>
+            <label>
+              Version UUID
+              <input
+                name="versionId"
+                defaultValue={selectedDocumentLatestVersion?.id ?? ""}
+                placeholder="UUID version"
+              />
+            </label>
+            <label>
+              Decision
+              <select
+                name="action"
+                defaultValue={selectedDocumentLatestVersion?.safetyStatus === "QUARANTINED" ? "release" : "quarantine"}
+              >
+                <option value="quarantine">Mettre en quarantaine</option>
+                <option value="release">Liberer apres revue</option>
+              </select>
+            </label>
+            <label>
+              Motif obligatoire
+              <input name="reason" defaultValue="Revue humaine documentee par l&apos;agent securite documentaire" />
+            </label>
+          </div>
+          <button type="submit">Enregistrer decision de securite</button>
+          <Result result={documentQuarantineResult} />
+        </form>
+
         {documents.length === 0 ? (
           <p className="hint">Aucun document charge.</p>
         ) : (
@@ -1775,7 +1855,8 @@ export function StaffConsoleClient() {
                 {item.versions.map((version) => (
                   <small key={version.id}>
                     v{version.versionNumber}: {version.originalFilename} · {version.malwareScanStatus} ·{" "}
-                    {version.digitalSignatureStatus} · {version.checksumSha256}
+                    {version.digitalSignatureStatus} · {version.safetyStatus} · {version.checksumSha256}
+                    {version.safetyReason ? ` · Motif securite: ${version.safetyReason}` : ""}
                   </small>
                 ))}
               </article>
@@ -2929,6 +3010,9 @@ function documentExportBlockers(document: DocumentResponse): string[] {
   }
 
   const blockers: string[] = [];
+  if (version.safetyStatus === "QUARANTINED") {
+    blockers.push("DOCUMENT_VERSION_QUARANTINED");
+  }
   if (version.malwareScanStatus === "PENDING") {
     blockers.push("MALWARE_SCAN_PENDING");
   }
@@ -2951,9 +3035,10 @@ function summarizeDocumentGovernance(documents: DocumentResponse[]) {
         pendingScan: summary.pendingScan + (blockers.includes("MALWARE_SCAN_PENDING") ? 1 : 0),
         failedScan: summary.failedScan + (blockers.includes("MALWARE_SCAN_FAILED") ? 1 : 0),
         invalidSignature: summary.invalidSignature + (blockers.includes("DIGITAL_SIGNATURE_INVALID") ? 1 : 0),
+        quarantined: summary.quarantined + (blockers.includes("DOCUMENT_VERSION_QUARANTINED") ? 1 : 0),
       };
     },
-    { total: 0, pendingScan: 0, failedScan: 0, invalidSignature: 0 },
+    { total: 0, pendingScan: 0, failedScan: 0, invalidSignature: 0, quarantined: 0 },
   );
 }
 

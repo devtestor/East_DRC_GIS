@@ -353,6 +353,191 @@ class DocumentServiceTest {
     }
 
     @Test
+    void quarantinesDocumentVersionWithAuditTrail() {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "security@example.test");
+        DocumentRecord document = new DocumentRecord(
+                documentId,
+                "COURT_ORDER",
+                "parcel",
+                UUID.randomUUID(),
+                "Fictional court order",
+                DocumentClassification.LEGAL_EVIDENCE,
+                "LEGAL_RECORD",
+                "restricted-staff",
+                null,
+                null,
+                false,
+                actor.userId(),
+                actor.username(),
+                null);
+        DocumentVersionRecord version = new DocumentVersionRecord(
+                versionId,
+                documentId,
+                1,
+                "documents/fictional/court-order.pdf",
+                "court-order.pdf",
+                "application/pdf",
+                128L,
+                "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                MalwareScanStatus.FAILED,
+                DigitalSignatureStatus.INVALID,
+                actor.userId(),
+                actor.username());
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        DocumentAccessAuthorizer access = Mockito.mock(DocumentAccessAuthorizer.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(access.canAppendVersion(document, actor)).thenReturn(true);
+        when(versions.findByIdAndDocumentId(versionId, documentId)).thenReturn(Optional.of(version));
+        when(versions.save(any(DocumentVersionRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of(version));
+        DocumentService service = new DocumentService(documents, versions, access, audit);
+
+        DocumentResponse response = service.quarantineVersion(
+                documentId,
+                versionId,
+                new DocumentVersionSafetyDecisionRequest("Malware sandbox failed; evidence quarantined"),
+                actor);
+
+        assertThat(response.versions().get(0).safetyStatus()).isEqualTo("QUARANTINED");
+        assertThat(response.versions().get(0).safetyReason()).contains("Malware sandbox failed");
+        assertThat(response.versions().get(0).safetyReviewedByUserId()).isEqualTo(actor.userId());
+        verify(audit).record(
+                eq("document.version-quarantined"),
+                eq("document-version"),
+                eq(versionId.toString()),
+                eq(AuditClassification.LEGAL_EVIDENCE),
+                eq(actor.userId()),
+                isNull(),
+                anyMap());
+    }
+
+    @Test
+    void blocksReleaseWhenDocumentVersionStillUnsafe() {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "security@example.test");
+        DocumentRecord document = new DocumentRecord(
+                documentId,
+                "SURVEY_PLAN",
+                "parcel",
+                UUID.randomUUID(),
+                "Fictional survey plan",
+                DocumentClassification.LEGAL_EVIDENCE,
+                "LEGAL_RECORD",
+                "restricted-staff",
+                null,
+                null,
+                false,
+                actor.userId(),
+                actor.username(),
+                null);
+        DocumentVersionRecord version = new DocumentVersionRecord(
+                versionId,
+                documentId,
+                1,
+                "documents/fictional/survey-plan-unsafe.pdf",
+                "survey-plan-unsafe.pdf",
+                "application/pdf",
+                128L,
+                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                MalwareScanStatus.FAILED,
+                DigitalSignatureStatus.UNKNOWN,
+                actor.userId(),
+                actor.username());
+        version.quarantine("Sandbox failed", actor.userId(), actor.username());
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        DocumentAccessAuthorizer access = Mockito.mock(DocumentAccessAuthorizer.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(access.canAppendVersion(document, actor)).thenReturn(true);
+        when(versions.findByIdAndDocumentId(versionId, documentId)).thenReturn(Optional.of(version));
+        DocumentService service = new DocumentService(documents, versions, access, audit);
+
+        assertThatThrownBy(() -> service.releaseVersion(
+                        documentId,
+                        versionId,
+                        new DocumentVersionSafetyDecisionRequest("Release requested before clean rescan"),
+                        actor))
+                .isInstanceOf(UnsafeDocumentVersionReleaseException.class);
+        verify(audit).record(
+                eq("document.version-release-blocked"),
+                eq("document-version"),
+                eq(versionId.toString()),
+                eq(AuditClassification.SECURITY),
+                eq(actor.userId()),
+                isNull(),
+                anyMap());
+    }
+
+    @Test
+    void releasesQuarantinedDocumentVersionAfterCleanSafetyStatuses() {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "security@example.test");
+        DocumentRecord document = new DocumentRecord(
+                documentId,
+                "SURVEY_PLAN",
+                "parcel",
+                UUID.randomUUID(),
+                "Fictional survey plan",
+                DocumentClassification.LEGAL_EVIDENCE,
+                "LEGAL_RECORD",
+                "restricted-staff",
+                null,
+                null,
+                false,
+                actor.userId(),
+                actor.username(),
+                null);
+        DocumentVersionRecord version = new DocumentVersionRecord(
+                versionId,
+                documentId,
+                1,
+                "documents/fictional/survey-plan-clean.pdf",
+                "survey-plan-clean.pdf",
+                "application/pdf",
+                128L,
+                "9999999999999999999999999999999999999999999999999999999999999999",
+                MalwareScanStatus.PASSED,
+                DigitalSignatureStatus.VALID,
+                actor.userId(),
+                actor.username());
+        version.quarantine("Initial scanner alarm", actor.userId(), actor.username());
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        DocumentAccessAuthorizer access = Mockito.mock(DocumentAccessAuthorizer.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(access.canAppendVersion(document, actor)).thenReturn(true);
+        when(versions.findByIdAndDocumentId(versionId, documentId)).thenReturn(Optional.of(version));
+        when(versions.save(any(DocumentVersionRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of(version));
+        DocumentService service = new DocumentService(documents, versions, access, audit);
+
+        DocumentResponse response = service.releaseVersion(
+                documentId,
+                versionId,
+                new DocumentVersionSafetyDecisionRequest("Clean rescan completed and signature verified"),
+                actor);
+
+        assertThat(response.versions().get(0).safetyStatus()).isEqualTo("AVAILABLE");
+        assertThat(response.versions().get(0).safetyReason()).contains("Clean rescan");
+        verify(audit).record(
+                eq("document.version-released"),
+                eq("document-version"),
+                eq(versionId.toString()),
+                eq(AuditClassification.LEGAL_EVIDENCE),
+                eq(actor.userId()),
+                isNull(),
+                anyMap());
+    }
+
+    @Test
     void auditsSuccessfulDocumentRead() {
         UUID documentId = UUID.randomUUID();
         AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");

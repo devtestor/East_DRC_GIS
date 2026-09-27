@@ -169,6 +169,9 @@ public class DataGovernanceService {
     }
 
     private void addVersionExportBlockers(DocumentVersionRecord version, List<String> blockers) {
+        if (version.safetyStatus() == cd.edrc.landgis.documents.DocumentVersionSafetyStatus.QUARANTINED) {
+            blockers.add("DOCUMENT_VERSION_QUARANTINED");
+        }
         if (version.malwareScanStatus() == MalwareScanStatus.PENDING) {
             blockers.add("MALWARE_SCAN_PENDING");
         }

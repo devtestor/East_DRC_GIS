@@ -199,6 +199,93 @@ public class DocumentService {
         return DocumentResponse.from(document, versions.findByDocumentIdOrderByVersionNumberAsc(documentId));
     }
 
+    @Transactional
+    public DocumentResponse quarantineVersion(
+            UUID documentId,
+            UUID versionId,
+            DocumentVersionSafetyDecisionRequest request,
+            AuthenticatedActor actor) {
+        DocumentRecord document = documents.findById(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+        if (!access.canAppendVersion(document, actor)) {
+            auditService.record(
+                    "document.version-quarantine-denied",
+                    "document-version",
+                    versionId.toString(),
+                    AuditClassification.SECURITY,
+                    actor.userId(),
+                    document.custodianOrganizationId(),
+                    auditEvidence(document, "quarantine-denied"));
+            throw new DocumentAccessDeniedException(documentId);
+        }
+        DocumentVersionRecord version = versions.findByIdAndDocumentId(versionId, documentId)
+                .orElseThrow(() -> new DocumentVersionNotFoundException(documentId, versionId));
+        DocumentVersionSafetyStatus previousStatus = version.safetyStatus();
+        version.quarantine(request.reason(), actor.userId(), actor.username());
+        versions.save(version);
+        auditService.record(
+                "document.version-quarantined",
+                "document-version",
+                version.id().toString(),
+                auditClassificationFor(document),
+                actor.userId(),
+                document.custodianOrganizationId(),
+                safetyDecisionAuditEvidence(document, version, previousStatus, request.reason(), "quarantine"));
+        return DocumentResponse.from(document, versions.findByDocumentIdOrderByVersionNumberAsc(documentId));
+    }
+
+    @Transactional
+    public DocumentResponse releaseVersion(
+            UUID documentId,
+            UUID versionId,
+            DocumentVersionSafetyDecisionRequest request,
+            AuthenticatedActor actor) {
+        DocumentRecord document = documents.findById(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+        if (!access.canAppendVersion(document, actor)) {
+            auditService.record(
+                    "document.version-release-denied",
+                    "document-version",
+                    versionId.toString(),
+                    AuditClassification.SECURITY,
+                    actor.userId(),
+                    document.custodianOrganizationId(),
+                    auditEvidence(document, "release-denied"));
+            throw new DocumentAccessDeniedException(documentId);
+        }
+        DocumentVersionRecord version = versions.findByIdAndDocumentId(versionId, documentId)
+                .orElseThrow(() -> new DocumentVersionNotFoundException(documentId, versionId));
+        if (version.malwareScanStatus() == MalwareScanStatus.FAILED
+                || version.digitalSignatureStatus() == DigitalSignatureStatus.INVALID) {
+            auditService.record(
+                    "document.version-release-blocked",
+                    "document-version",
+                    version.id().toString(),
+                    AuditClassification.SECURITY,
+                    actor.userId(),
+                    document.custodianOrganizationId(),
+                    safetyDecisionAuditEvidence(
+                            document,
+                            version,
+                            version.safetyStatus(),
+                            request.reason(),
+                            "release-blocked"));
+            throw new UnsafeDocumentVersionReleaseException(documentId, versionId);
+        }
+        DocumentVersionSafetyStatus previousStatus = version.safetyStatus();
+        version.releaseFromQuarantine(request.reason(), actor.userId(), actor.username());
+        versions.save(version);
+        auditService.record(
+                "document.version-released",
+                "document-version",
+                version.id().toString(),
+                auditClassificationFor(document),
+                actor.userId(),
+                document.custodianOrganizationId(),
+                safetyDecisionAuditEvidence(document, version, previousStatus, request.reason(), "release"));
+        return DocumentResponse.from(document, versions.findByDocumentIdOrderByVersionNumberAsc(documentId));
+    }
+
     @Transactional(readOnly = true)
     public List<DocumentResponse> findByOwner(String ownerType, UUID ownerId, AuthenticatedActor actor) {
         auditService.record(
@@ -260,6 +347,24 @@ public class DocumentService {
         evidence.put("previousDigitalSignatureStatus", previousDigitalSignatureStatus.name());
         evidence.put("newDigitalSignatureStatus", request.digitalSignatureStatus().name());
         evidence.put("reason", request.reason());
+        return evidence;
+    }
+
+    private Map<String, Object> safetyDecisionAuditEvidence(
+            DocumentRecord document,
+            DocumentVersionRecord version,
+            DocumentVersionSafetyStatus previousStatus,
+            String reason,
+            String operation) {
+        Map<String, Object> evidence = new HashMap<>(auditEvidence(document, operation));
+        evidence.put("documentId", document.id().toString());
+        evidence.put("documentVersionId", version.id().toString());
+        evidence.put("versionNumber", version.versionNumber());
+        evidence.put("previousSafetyStatus", previousStatus.name());
+        evidence.put("newSafetyStatus", version.safetyStatus().name());
+        evidence.put("malwareScanStatus", version.malwareScanStatus().name());
+        evidence.put("digitalSignatureStatus", version.digitalSignatureStatus().name());
+        evidence.put("reason", reason);
         return evidence;
     }
 

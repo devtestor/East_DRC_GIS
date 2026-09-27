@@ -178,6 +178,33 @@ class DataGovernanceServiceTest {
     }
 
     @Test
+    void blocksExportWhenLatestDocumentVersionIsQuarantined() {
+        UUID documentId = UUID.randomUUID();
+        DocumentRecord document = document(documentId, DocumentClassification.PUBLIC, "PUBLIC_RECORD", false);
+        DocumentVersionRecord quarantinedVersion =
+                version(documentId, 1, MalwareScanStatus.PASSED, DigitalSignatureStatus.VALID);
+        quarantinedVersion.quarantine(
+                "Manual document security review quarantined the evidence",
+                UUID.randomUUID(),
+                "security@example.test");
+        DocumentRecordRepository documents = Mockito.mock(DocumentRecordRepository.class);
+        DocumentVersionRecordRepository versions = Mockito.mock(DocumentVersionRecordRepository.class);
+        RetentionPolicyRepository policies = Mockito.mock(RetentionPolicyRepository.class);
+        LegalHoldRepository holds = Mockito.mock(LegalHoldRepository.class);
+        AuditService audit = Mockito.mock(AuditService.class);
+        when(documents.findById(documentId)).thenReturn(Optional.of(document));
+        when(holds.existsByTargetTypeAndTargetIdAndStatus("document", documentId, LegalHoldStatus.ACTIVE))
+                .thenReturn(false);
+        when(versions.findByDocumentIdOrderByVersionNumberAsc(documentId)).thenReturn(List.of(quarantinedVersion));
+        DataGovernanceService service = new DataGovernanceService(documents, versions, policies, holds, audit, FUTURE_CLOCK);
+
+        PrivacyExportDecision decision = service.evaluateDocumentExport(documentId, true, true);
+
+        assertThat(decision.allowed()).isFalse();
+        assertThat(decision.blockers()).containsExactly("DOCUMENT_VERSION_QUARANTINED");
+    }
+
+    @Test
     void recordsAuditWhenPlacingLegalHold() {
         UUID documentId = UUID.randomUUID();
         DocumentRecord document = document(documentId, DocumentClassification.LEGAL_EVIDENCE, "LEGAL_RECORD", false);

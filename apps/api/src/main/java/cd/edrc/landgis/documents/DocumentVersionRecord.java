@@ -44,6 +44,18 @@ public class DocumentVersionRecord {
     @Column(nullable = false)
     private DigitalSignatureStatus digitalSignatureStatus;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DocumentVersionSafetyStatus safetyStatus;
+
+    private String safetyReason;
+
+    private UUID safetyReviewedByUserId;
+
+    private String safetyReviewedBy;
+
+    private OffsetDateTime safetyReviewedAt;
+
     @Column(nullable = false)
     private UUID uploadedByUserId;
 
@@ -79,6 +91,7 @@ public class DocumentVersionRecord {
         this.checksumSha256 = checksumSha256;
         this.malwareScanStatus = malwareScanStatus;
         this.digitalSignatureStatus = digitalSignatureStatus;
+        this.safetyStatus = DocumentVersionSafetyStatus.AVAILABLE;
         this.uploadedByUserId = uploadedByUserId;
         this.uploadedBy = uploadedBy;
         this.uploadedAt = OffsetDateTime.now();
@@ -124,6 +137,26 @@ public class DocumentVersionRecord {
         return digitalSignatureStatus;
     }
 
+    public DocumentVersionSafetyStatus safetyStatus() {
+        return safetyStatus;
+    }
+
+    public String safetyReason() {
+        return safetyReason;
+    }
+
+    public UUID safetyReviewedByUserId() {
+        return safetyReviewedByUserId;
+    }
+
+    public String safetyReviewedBy() {
+        return safetyReviewedBy;
+    }
+
+    public OffsetDateTime safetyReviewedAt() {
+        return safetyReviewedAt;
+    }
+
     public UUID uploadedByUserId() {
         return uploadedByUserId;
     }
@@ -141,5 +174,21 @@ public class DocumentVersionRecord {
             DigitalSignatureStatus digitalSignatureStatus) {
         this.malwareScanStatus = malwareScanStatus;
         this.digitalSignatureStatus = digitalSignatureStatus;
+    }
+
+    public void quarantine(String reason, UUID reviewedByUserId, String reviewedBy) {
+        this.safetyStatus = DocumentVersionSafetyStatus.QUARANTINED;
+        this.safetyReason = reason;
+        this.safetyReviewedByUserId = reviewedByUserId;
+        this.safetyReviewedBy = reviewedBy;
+        this.safetyReviewedAt = OffsetDateTime.now();
+    }
+
+    public void releaseFromQuarantine(String reason, UUID reviewedByUserId, String reviewedBy) {
+        this.safetyStatus = DocumentVersionSafetyStatus.AVAILABLE;
+        this.safetyReason = reason;
+        this.safetyReviewedByUserId = reviewedByUserId;
+        this.safetyReviewedBy = reviewedBy;
+        this.safetyReviewedAt = OffsetDateTime.now();
     }
 }

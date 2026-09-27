@@ -173,4 +173,86 @@ class DocumentControllerSecurityTest {
                                 """))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @WithMockUser(roles = "STAFF", username = "officer@example.test")
+    void allowsStaffDocumentVersionQuarantine() throws Exception {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");
+        when(actorResolver.requireActor("officer@example.test")).thenReturn(actor);
+        when(documentService.quarantineVersion(
+                        any(UUID.class),
+                        any(UUID.class),
+                        any(DocumentVersionSafetyDecisionRequest.class),
+                        any(AuthenticatedActor.class)))
+                .thenReturn(new DocumentResponse(
+                        documentId,
+                        "SURVEY_PLAN",
+                        "parcel",
+                        ownerId,
+                        "Fictional survey plan",
+                        "LEGAL_EVIDENCE",
+                        "LEGAL_RECORD",
+                        "workflow-task-and-authorized-staff",
+                        null,
+                        null,
+                        false,
+                        actor.userId(),
+                        actor.username(),
+                        java.time.OffsetDateTime.now(),
+                        null,
+                        List.of()));
+
+        mvc.perform(post("/api/v1/documents/{documentId}/versions/{versionId}/quarantine", documentId, versionId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "Sandbox malware scan failed; quarantine required"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "STAFF", username = "officer@example.test")
+    void allowsStaffDocumentVersionRelease() throws Exception {
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        AuthenticatedActor actor = new AuthenticatedActor(UUID.randomUUID(), "officer@example.test");
+        when(actorResolver.requireActor("officer@example.test")).thenReturn(actor);
+        when(documentService.releaseVersion(
+                        any(UUID.class),
+                        any(UUID.class),
+                        any(DocumentVersionSafetyDecisionRequest.class),
+                        any(AuthenticatedActor.class)))
+                .thenReturn(new DocumentResponse(
+                        documentId,
+                        "SURVEY_PLAN",
+                        "parcel",
+                        ownerId,
+                        "Fictional survey plan",
+                        "LEGAL_EVIDENCE",
+                        "LEGAL_RECORD",
+                        "workflow-task-and-authorized-staff",
+                        null,
+                        null,
+                        false,
+                        actor.userId(),
+                        actor.username(),
+                        java.time.OffsetDateTime.now(),
+                        null,
+                        List.of()));
+
+        mvc.perform(post("/api/v1/documents/{documentId}/versions/{versionId}/release", documentId, versionId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "Clean rescan completed and signature verified"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
 }

@@ -75,6 +75,32 @@ class DocumentController {
                 actors.requireActor(principal == null ? null : principal.getName()));
     }
 
+    @PostMapping("/{documentId}/versions/{versionId}/quarantine")
+    DocumentResponse quarantineVersion(
+            @PathVariable UUID documentId,
+            @PathVariable UUID versionId,
+            @Valid @RequestBody DocumentVersionSafetyDecisionRequest request,
+            Principal principal) {
+        return documents.quarantineVersion(
+                documentId,
+                versionId,
+                request,
+                actors.requireActor(principal == null ? null : principal.getName()));
+    }
+
+    @PostMapping("/{documentId}/versions/{versionId}/release")
+    DocumentResponse releaseVersion(
+            @PathVariable UUID documentId,
+            @PathVariable UUID versionId,
+            @Valid @RequestBody DocumentVersionSafetyDecisionRequest request,
+            Principal principal) {
+        return documents.releaseVersion(
+                documentId,
+                versionId,
+                request,
+                actors.requireActor(principal == null ? null : principal.getName()));
+    }
+
     @GetMapping
     List<DocumentResponse> findByOwner(@RequestParam String ownerType, @RequestParam UUID ownerId, Principal principal) {
         return documents.findByOwner(
