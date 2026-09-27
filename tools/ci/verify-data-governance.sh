@@ -51,9 +51,9 @@ grep -q "DOCUMENT_EXPORT_REVIEW" apps/staff-console/src/app/staff-console-client
 grep -q "export-requests" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "export-packages" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "supportedLanguages" apps/staff-console/src/app/staff-console-client.tsx
-grep -q "English" apps/staff-console/src/app/staff-console-client.tsx
-grep -q "Kiswahili" apps/staff-console/src/app/staff-console-client.tsx
-grep -q "documentIntake" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "English" apps/staff-console/src/app/staff-console-i18n.ts
+grep -q "Kiswahili" apps/staff-console/src/app/staff-console-i18n.ts
+grep -q "documentIntake" apps/staff-console/src/app/staff-console-i18n.ts
 grep -q "referenceId" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "Synthese de gouvernance documentaire" apps/staff-console/src/app/staff-console-client.tsx
 grep -q "Revue scan/signature de version" apps/staff-console/src/app/staff-console-client.tsx
