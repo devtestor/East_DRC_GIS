@@ -13,6 +13,7 @@ required_files=(
   "apps/api/src/main/resources/db/migration/V032__governed_export_packages.sql"
   "apps/api/src/main/resources/db/migration/V033__document_version_quarantine.sql"
   "apps/staff-console/src/app/staff-console-client.tsx"
+  "apps/staff-console/src/app/staff-console-document-panel.tsx"
   "docs/security/data-governance-retention.md"
   "docs/security/privacy-export-workflow.md"
   "docs/architecture/phase-14-plan.md"
@@ -55,9 +56,9 @@ grep -q "English" apps/staff-console/src/app/staff-console-i18n.ts
 grep -q "Kiswahili" apps/staff-console/src/app/staff-console-i18n.ts
 grep -q "documentIntake" apps/staff-console/src/app/staff-console-i18n.ts
 grep -q "referenceId" apps/staff-console/src/app/staff-console-client.tsx
-grep -q "Synthese de gouvernance documentaire" apps/staff-console/src/app/staff-console-client.tsx
-grep -q "Revue scan/signature de version" apps/staff-console/src/app/staff-console-client.tsx
-grep -q "Quarantaine / liberation de version" apps/staff-console/src/app/staff-console-client.tsx
+grep -q "Synthese de gouvernance documentaire" apps/staff-console/src/app/staff-console-document-panel.tsx
+grep -q "Revue scan/signature de version" apps/staff-console/src/app/staff-console-document-panel.tsx
+grep -q "Quarantaine / liberation de version" apps/staff-console/src/app/staff-console-document-panel.tsx
 grep -q "safety-status" apps/api/src/main/java/cd/edrc/landgis/documents/DocumentController.java
 grep -q "quarantine" apps/api/src/main/java/cd/edrc/landgis/documents/DocumentController.java
 grep -q "release" apps/api/src/main/java/cd/edrc/landgis/documents/DocumentController.java
