@@ -11,6 +11,11 @@ import {
   type DocumentResponse
 } from "./staff-console-document-panel";
 import {
+  ControlledExportPanel,
+  type DocumentExportPackageResponse,
+  type DocumentExportRequestResponse
+} from "./staff-console-export-panel";
+import {
   ConnectionPanel,
   formatBody,
   GeometryPreview,
@@ -252,43 +257,6 @@ type FormalPilotOperationalGateResponse = {
   ownerRole: string;
   summary: string;
   evidenceReference: string | null;
-};
-
-type DocumentExportRequestResponse = {
-  id: string;
-  documentId: string;
-  purpose: string;
-  redactionPlanned: boolean;
-  status: string;
-  redactionRequired: boolean;
-  approvalRequired: boolean;
-  blockers: string[];
-  workflowTaskId: string | null;
-  requestedByUserId: string;
-  requestedBy: string;
-  requestedAt: string;
-  decidedByUserId: string | null;
-  decidedBy: string | null;
-  decidedAt: string | null;
-  decisionReason: string | null;
-};
-
-type DocumentExportPackageResponse = {
-  id: string;
-  exportRequestId: string;
-  documentId: string;
-  documentVersionId: string;
-  objectStorageKey: string;
-  manifestSha256: string;
-  packageSha256: string;
-  packageSizeBytes: number;
-  expiresAt: string;
-  generatedByUserId: string;
-  generatedBy: string;
-  generatedAt: string;
-  downloadedAt: string | null;
-  downloadCount: number;
-  deliveryToken: string | null;
 };
 
 const defaultApiUrl = "http://localhost:8080";
@@ -1455,135 +1423,27 @@ export function StaffConsoleClient() {
         updateDocumentVersionSafetyStatus={updateDocumentVersionSafetyStatus}
       />
 
-      <section className="panel" aria-labelledby="export-governance-heading">
-        <div className="section-row">
-          <div>
-            <p className="eyebrow">{t.dataGovernance}</p>
-            <h2 id="export-governance-heading">{t.controlledExports}</h2>
-            <p className="hint">{t.controlledExportsHint}</p>
-          </div>
-          <button type="button" onClick={loadDocumentExportRequest}>
-            {t.refresh}
-          </button>
-        </div>
-
-        <form className="nested-form" onSubmit={createDocumentExportRequest}>
-          <h3>Creer une demande d&apos;export</h3>
-          <div className="form-grid">
-            <label>
-              UUID document source
-              <input name="documentId" required placeholder="UUID du document" />
-            </label>
-            <label>
-              But de l&apos;export
-              <input name="purpose" defaultValue="Audit provincial avec redaction planifiee" required />
-            </label>
-            <label className="checkbox-label">
-              <input name="redactionPlanned" type="checkbox" defaultChecked />
-              Plan de redaction confirme
-            </label>
-          </div>
-          <button type="submit">Soumettre la demande</button>
-          <Result result={exportRequestResult} />
-        </form>
-
-        <div className="form-grid">
-          <label>
-            UUID demande d&apos;export
-            <input value={exportRequestId} onChange={(event) => setExportRequestId(event.target.value)} />
-          </label>
-          <label>
-            UUID package
-            <input value={exportPackageId} onChange={(event) => setExportPackageId(event.target.value)} />
-          </label>
-          <label>
-            Jeton de livraison
-            <input
-              value={exportDeliveryToken}
-              onChange={(event) => setExportDeliveryToken(event.target.value)}
-              placeholder="Affiche seulement lors de la generation"
-            />
-          </label>
-        </div>
-
-        {exportRequest ? (
-          <article className="record-card">
-            <strong>Demande {exportRequest.status}</strong>
-            <span>Document {exportRequest.documentId}</span>
-            <small>
-              Redaction requise: {exportRequest.redactionRequired ? "oui" : "non"} · Approbation requise:{" "}
-              {exportRequest.approvalRequired ? "oui" : "non"} · Tache: {exportRequest.workflowTaskId ?? "aucune"}
-            </small>
-            {exportRequest.blockers.length > 0 ? (
-              <small>Bloqueurs: {exportRequest.blockers.join(", ")}</small>
-            ) : null}
-          </article>
-        ) : (
-          <p className="hint">Aucune demande d&apos;export chargee.</p>
-        )}
-
-        <form className="nested-form" onSubmit={completeDocumentExportReview}>
-          <h3>Cloturer la revue gouvernance</h3>
-          <p className="hint">
-            Effectuez d&apos;abord la decision sur la tache `DOCUMENT_EXPORT_REVIEW` dans le panneau workflow, puis
-            enregistrez ici le resultat final de gouvernance.
-          </p>
-          <div className="form-grid">
-            <input type="hidden" name="exportRequestId" value={exportRequestId} />
-            <label>
-              Decision
-              <select name="decision" defaultValue="APPROVE">
-                <option value="APPROVE">Approuver l&apos;export redige</option>
-                <option value="REJECT">Rejeter l&apos;export</option>
-              </select>
-            </label>
-            <label>
-              Motif
-              <input name="reason" defaultValue="Revue securite terminee et preuves controlees" />
-            </label>
-          </div>
-          <button type="submit">Enregistrer la revue d&apos;export</button>
-          <Result result={exportReviewResult} />
-        </form>
-
-        <form className="nested-form" onSubmit={generateDocumentExportPackage}>
-          <h3>Generer le package securise</h3>
-          <div className="form-grid">
-            <input type="hidden" name="exportRequestId" value={exportRequestId} />
-            <label>
-              Expiration du jeton (minutes)
-              <input name="expiresInMinutes" type="number" min="5" max="1440" defaultValue="30" />
-            </label>
-          </div>
-          <button type="submit">Generer package</button>
-          <button type="button" onClick={loadDocumentExportPackage}>
-            Charger package
-          </button>
-          <Result result={exportPackageResult} />
-        </form>
-
-        {exportPackage ? (
-          <article className="record-card">
-            <strong>Package {exportPackage.id}</strong>
-            <span>SHA-256: {exportPackage.packageSha256}</span>
-            <small>
-              Manifest: {exportPackage.manifestSha256} · Taille: {exportPackage.packageSizeBytes} octets ·
-              Expire le {new Date(exportPackage.expiresAt).toLocaleString("fr-CD")}
-            </small>
-            <small>
-              Telechargements: {exportPackage.downloadCount} · Jeton affiche:{" "}
-              {exportPackage.deliveryToken ? "oui, sauvegardez-le maintenant" : "non"}
-            </small>
-          </article>
-        ) : null}
-
-        <div className="decision-form">
-          <button type="button" onClick={downloadDocumentExportPackage}>
-            Telecharger avec jeton
-          </button>
-          <Result result={exportDownloadResult} />
-        </div>
-      </section>
+      <ControlledExportPanel
+        completeDocumentExportReview={completeDocumentExportReview}
+        copy={t}
+        createDocumentExportRequest={createDocumentExportRequest}
+        downloadDocumentExportPackage={downloadDocumentExportPackage}
+        exportDeliveryToken={exportDeliveryToken}
+        exportDownloadResult={exportDownloadResult}
+        exportPackage={exportPackage}
+        exportPackageId={exportPackageId}
+        exportPackageResult={exportPackageResult}
+        exportRequest={exportRequest}
+        exportRequestId={exportRequestId}
+        exportRequestResult={exportRequestResult}
+        exportReviewResult={exportReviewResult}
+        generateDocumentExportPackage={generateDocumentExportPackage}
+        loadDocumentExportPackage={loadDocumentExportPackage}
+        loadDocumentExportRequest={loadDocumentExportRequest}
+        setExportDeliveryToken={setExportDeliveryToken}
+        setExportPackageId={setExportPackageId}
+        setExportRequestId={setExportRequestId}
+      />
 
       <section className="panel" aria-labelledby="pilot-readiness-heading">
         <div className="section-row">

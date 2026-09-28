@@ -14,6 +14,7 @@ required_files=(
   "apps/api/src/main/resources/db/migration/V033__document_version_quarantine.sql"
   "apps/staff-console/src/app/staff-console-client.tsx"
   "apps/staff-console/src/app/staff-console-document-panel.tsx"
+  "apps/staff-console/src/app/staff-console-export-panel.tsx"
   "docs/security/data-governance-retention.md"
   "docs/security/privacy-export-workflow.md"
   "docs/architecture/phase-14-plan.md"
